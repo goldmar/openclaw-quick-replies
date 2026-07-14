@@ -180,7 +180,7 @@ Quick Replies requires OpenClaw 2026.7.1 or newer and Node.js 22.22.3 or newer. 
 openclaw plugins update openclaw-quick-replies
 ```
 
-There is no separate auto-updater and no update telemetry.
+OpenClaw does not run this command periodically. Run it when you want to check for and install an update, or schedule `openclaw plugins update --all` centrally for all of your plugins. Quick Replies has no separate updater and sends no update telemetry.
 
 ## Development
 
