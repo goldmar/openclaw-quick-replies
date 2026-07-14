@@ -12,7 +12,7 @@ corepack enable
 pnpm install --frozen-lockfile
 pnpm verify
 pnpm proof:quick-replies:all
-pnpm validate:release-metadata -- 0.1.0
+pnpm validate:release-metadata -- "$(node -p "require('./package.json').version")"
 pnpm audit:prod
 pnpm pack:dry-run
 ```
@@ -22,8 +22,8 @@ pnpm pack:dry-run
 To test the exact package artifact:
 
 ```bash
-npm pack
-OPENCLAW_HOME="$(mktemp -d)" openclaw plugins install npm-pack:./openclaw-quick-replies-0.1.0.tgz
+tarball="$(npm pack --json | node -e 'let data=""; process.stdin.on("data", chunk => data += chunk); process.stdin.on("end", () => process.stdout.write(JSON.parse(data)[0].filename))')"
+OPENCLAW_HOME="$(mktemp -d)" openclaw plugins install "npm-pack:./$tarball"
 ```
 
 Inspect the installed runtime and remove the temporary OpenClaw home afterward.
@@ -37,4 +37,4 @@ Inspect the installed runtime and remove the temporary OpenClaw home afterward.
 5. Approve the protected `release` environment.
 6. Verify npm, ClawHub, and the GitHub release resolve to the same commit and artifact digest.
 
-Publishing uses GitHub OIDC trusted publishers. Bootstrap credentials are short-lived and must be removed and revoked immediately after the first release.
+Publishing uses GitHub OIDC trusted publishers. Publishing tokens must not be stored in the repository.

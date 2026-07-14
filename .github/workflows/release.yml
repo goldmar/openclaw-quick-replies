@@ -169,12 +169,11 @@ jobs:
         env:
           TARBALL: ${{ needs.verify.outputs.tarball }}
         run: |
-          if clawhub package verify "artifact/$TARBALL" --package "$PACKAGE_NAME" --version "${{ inputs.version }}" --json; then
+          artifact="$GITHUB_WORKSPACE/artifact/$TARBALL"
+          if clawhub package verify "$artifact" --package "$PACKAGE_NAME" --version "${{ inputs.version }}" --json; then
             echo "Matching ClawHub artifact already exists."
           else
-            mkdir clawhub-source
-            tar -xzf "artifact/$TARBALL" -C clawhub-source --strip-components=1
-            clawhub package publish clawhub-source \
+            clawhub package publish "$artifact" \
               --family code-plugin \
               --name "$PACKAGE_NAME" \
               --version "${{ inputs.version }}" \
@@ -182,7 +181,7 @@ jobs:
               --source-ref "v${{ inputs.version }}" \
               --source-commit "${{ inputs.commit }}" \
               --json
-            clawhub package verify "artifact/$TARBALL" --package "$PACKAGE_NAME" --version "${{ inputs.version }}" --json
+            clawhub package verify "$artifact" --package "$PACKAGE_NAME" --version "${{ inputs.version }}" --json
           fi
 
       - name: Publish or verify npm artifact
@@ -196,7 +195,7 @@ jobs:
             test "$(sha256sum "$existing" | cut -d' ' -f1)" = "$(sha256sum "artifact/$TARBALL" | cut -d' ' -f1)"
             echo "Matching npm artifact already exists."
           else
-            npm publish "artifact/$TARBALL" --access public --provenance
+            npm publish "./artifact/$TARBALL" --access public --provenance
           fi
 
       - name: Create or update GitHub release
