@@ -29,7 +29,11 @@ type UpdateState = {
 type CommandResult = { stdout: string; stderr: string };
 type CommandRunner = (command: string, args: string[]) => Promise<CommandResult>;
 type ReleaseFetcher = () => Promise<string | undefined>;
-type ManagedInstall = { source: "npm" | "clawhub"; version: string };
+type ManagedInstall = {
+  source: "npm" | "clawhub";
+  pluginVersion?: string;
+  installVersion?: string;
+};
 
 export type UpdateCheckerOptions = {
   currentVersion?: string;
@@ -141,7 +145,7 @@ export class QuickRepliesUpdateChecker {
     if (Number.isFinite(lastCheckedAt) && this.now() - lastCheckedAt < UPDATE_CHECK_INTERVAL_MS) return;
 
     this.checkInFlight = this.checkForUpdate()
-      .catch((error) => this.options.log?.("update_check_failed", { error: errorMessage(error) }))
+      .catch((error) => this.safeLog("update_check_failed", { error: errorMessage(error) }))
       .finally(() => { this.checkInFlight = undefined; });
   }
 
@@ -169,7 +173,7 @@ export class QuickRepliesUpdateChecker {
       });
       return latestVersion;
     } catch (error) {
-      this.options.log?.("update_prompt_failed", { error: errorMessage(error) });
+      this.safeLog("update_prompt_failed", { error: errorMessage(error) });
       return undefined;
     }
   }
@@ -193,16 +197,19 @@ export class QuickRepliesUpdateChecker {
     const install = this.inspectManagedInstall()
       .then(async (before) => {
         const args = this.resolveInstallCommand(before.source, normalized);
-        this.options.log?.("update_install_started", { source: before.source, version: normalized });
+        this.safeLog("update_install_started", { source: before.source, version: normalized });
         await this.runCommand("openclaw", args);
         const after = await this.inspectManagedInstall();
         if (after.source !== before.source) {
           throw new Error(`Quick Replies install source changed from ${before.source} to ${after.source}.`);
         }
-        if (after.version !== normalized) {
-          throw new Error(`Quick Replies v${normalized} was requested, but v${after.version} is installed.`);
+        if (after.pluginVersion !== normalized) {
+          throw new Error(`Quick Replies v${normalized} was requested, but manifest v${after.pluginVersion ?? "unknown"} is installed.`);
         }
-        this.options.log?.("update_install_verified", { source: after.source, version: after.version });
+        if (after.installVersion && after.installVersion !== normalized) {
+          throw new Error(`Quick Replies v${normalized} was requested, but install record v${after.installVersion} is installed.`);
+        }
+        this.safeLog("update_install_verified", { source: after.source, version: after.pluginVersion });
       })
       .then(() => {
         this.writeState({
@@ -213,7 +220,7 @@ export class QuickRepliesUpdateChecker {
         });
       })
       .catch((error) => {
-        this.options.log?.("update_install_failed", { version: normalized, error: errorMessage(error) });
+        this.safeLog("update_install_failed", { version: normalized, error: errorMessage(error) });
         throw error;
       })
       .finally(() => this.installInFlight.delete(normalized));
@@ -249,7 +256,7 @@ export class QuickRepliesUpdateChecker {
       const next = { ...this.readState(), lastCheckedAt: checkedAt, latestVersion };
       delete next.lastError;
       this.writeState(next);
-      this.options.log?.("update_check_completed", { latestVersion: latestVersion ?? null });
+      this.safeLog("update_check_completed", { latestVersion: latestVersion ?? null });
     } catch (error) {
       this.writeState({ ...this.readState(), lastCheckedAt: checkedAt, lastError: errorMessage(error) });
       throw error;
@@ -257,13 +264,21 @@ export class QuickRepliesUpdateChecker {
   }
 
   logCallback(event: string, fields: Record<string, unknown>): void {
-    this.options.log?.(event, fields);
+    this.safeLog(event, fields);
+  }
+
+  private safeLog(event: string, fields: Record<string, unknown>): void {
+    try {
+      this.options.log?.(event, fields);
+    } catch {
+      // Diagnostics must never alter update or callback control flow.
+    }
   }
 
   private async inspectManagedInstall(): Promise<ManagedInstall> {
     const inspection = await this.runCommand("openclaw", ["plugins", "inspect", PACKAGE_NAME, "--json"]);
     const managed = parseManagedInstall(inspection.stdout);
-    if (!managed) throw new Error("The installed Quick Replies source or version cannot be verified.");
+    if (!managed) throw new Error("The installed Quick Replies source cannot be verified.");
     return managed;
   }
 
@@ -323,12 +338,17 @@ function parseManagedInstall(raw: string): ManagedInstall | undefined {
     const install = (parsed as Record<string, unknown>).install;
     if (!install || typeof install !== "object" || Array.isArray(install)) return undefined;
     const source = (install as Record<string, unknown>).source;
-    const installVersion = normalizeStableVersion((install as Record<string, unknown>).version as string | undefined);
+    const installRecord = install as Record<string, unknown>;
+    const hasInstallVersion = Object.hasOwn(installRecord, "version");
+    const installVersion = typeof installRecord.version === "string"
+      ? normalizeStableVersion(installRecord.version)
+      : undefined;
+    if (hasInstallVersion && !installVersion) return undefined;
     const plugin = (parsed as Record<string, unknown>).plugin;
     if (!plugin || typeof plugin !== "object" || Array.isArray(plugin)) return undefined;
     const pluginVersion = normalizeStableVersion((plugin as Record<string, unknown>).version as string | undefined);
-    if ((source !== "npm" && source !== "clawhub") || !installVersion || pluginVersion !== installVersion) return undefined;
-    return { source, version: installVersion };
+    if (source !== "npm" && source !== "clawhub") return undefined;
+    return { source, pluginVersion, installVersion };
   } catch {
     return undefined;
   }

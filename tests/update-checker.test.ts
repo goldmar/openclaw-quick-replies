@@ -33,6 +33,10 @@ function inspection(source: "npm" | "clawhub" = "npm", version = "0.1.1"): strin
   return JSON.stringify({ plugin: { version }, install: { source, version } });
 }
 
+function inspectionWithoutInstallVersion(source: "npm" | "clawhub", pluginVersion: string): string {
+  return JSON.stringify({ plugin: { version: pluginVersion }, install: { source } });
+}
+
 function managedRunner(
   commands: string[][],
   source: "npm" | "clawhub" = "npm",
@@ -302,9 +306,83 @@ describe("Quick Replies update checker", () => {
     await checker.waitForIdle();
     assert.equal(checker.claimPromptVersion(), "0.1.2");
 
-    await assert.rejects(checker.install("0.1.2"), /requested, but v0\.1\.1 is installed/);
+    await assert.rejects(checker.install("0.1.2"), /requested, but manifest v0\.1\.1 is installed/);
     assert.equal(checker.canRestart("0.1.2"), false);
     assert.ok(events.some(({ event }) => event === "update_install_failed"));
+  });
+
+  it("updates when plain inspection omits the optional install-record version", async () => {
+    const commands: string[][] = [];
+    let installed = false;
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: async (command, args) => {
+        commands.push([command, ...args]);
+        if (args[1] === "install") installed = true;
+        return {
+          stdout: args[1] === "inspect"
+            ? inspectionWithoutInstallVersion("npm", installed ? "0.1.2" : "0.1.1")
+            : "",
+          stderr: "",
+        };
+      },
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+
+    await checker.install("0.1.2");
+    assert.equal(checker.canRestart("0.1.2"), true);
+    assert.deepEqual(commands[1], ["openclaw", "plugins", "install", "openclaw-quick-replies@0.1.2", "--force"]);
+  });
+
+  it("rejects a present malformed install-record version", async () => {
+    const commands: string[][] = [];
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: async (command, args) => {
+        commands.push([command, ...args]);
+        return {
+          stdout: args[1] === "inspect"
+            ? JSON.stringify({ plugin: { version: "0.1.1" }, install: { source: "npm", version: "latest" } })
+            : "",
+          stderr: "",
+        };
+      },
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+
+    await assert.rejects(checker.install("0.1.2"), /source cannot be verified/);
+    assert.deepEqual(commands, [["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"]]);
+    assert.equal(checker.canRestart("0.1.2"), false);
+  });
+
+  it("keeps valid callbacks and installs working when diagnostic logging throws", async () => {
+    const commands: string[][] = [];
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: managedRunner(commands),
+      log: () => { throw new Error("logger unavailable"); },
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+
+    const result = await createUpdateInteractiveHandler(checker).handler({
+      auth: { isAuthorizedSender: true },
+      callback: { data: "oqru:v1:install:0.1.2", messageText: "Update available" },
+      respond: { editMessage: async () => {} },
+    });
+    assert.deepEqual(result, { handled: true });
+    assert.equal(checker.canRestart("0.1.2"), true);
   });
 
   it("logs callback rejection reasons without callback or message contents", async () => {
