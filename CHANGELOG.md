@@ -8,7 +8,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 - Added a daily, non-blocking update check that offers authorized Telegram controls for installing the exact approved version through OpenClaw's native plugin manager, preserving both npm and ClawHub install sources, and separately confirming a Gateway restart.
 - Added an `updateChecks` setting, enabled by default, and documented the npm registry metadata request used by the checker.
-- Fixed release automation to publish the exact verified tarball to npm and ClawHub, retain verified artifacts through delayed environment approval, and use an existing source ref during the pre-tag ClawHub dry run.
+- Fixed release automation to publish the exact verified tarball to npm and ClawHub, retain verified artifacts through delayed environment approval, and attribute the pre-tag ClawHub dry run to the exact commit without claiming a not-yet-created release ref.
 - Clarified how operator-triggered and centrally scheduled native plugin updates work.
 
 ## 0.1.1
