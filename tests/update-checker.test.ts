@@ -29,8 +29,25 @@ function event(text: string, channel = "telegram"): PluginHookReplyPayloadSendin
   return { kind: "final", channel, payload: { text } } as PluginHookReplyPayloadSendingEvent;
 }
 
-function inspection(source: "npm" | "clawhub" = "npm"): string {
-  return JSON.stringify({ install: { source } });
+function inspection(source: "npm" | "clawhub" = "npm", version = "0.1.1"): string {
+  return JSON.stringify({ plugin: { version }, install: { source, version } });
+}
+
+function inspectionWithoutInstallVersion(source: "npm" | "clawhub", pluginVersion: string): string {
+  return JSON.stringify({ plugin: { version: pluginVersion }, install: { source } });
+}
+
+function managedRunner(
+  commands: string[][],
+  source: "npm" | "clawhub" = "npm",
+  installedVersion = "0.1.2",
+) {
+  let installed = false;
+  return async (command: string, args: string[]) => {
+    commands.push([command, ...args]);
+    if (args[1] === "install") installed = true;
+    return { stdout: args[1] === "inspect" ? inspection(source, installed ? installedVersion : "0.1.1") : "", stderr: "" };
+  };
 }
 
 const context = { channelId: "telegram", messageId: "message-1" } as PluginHookReplyPayloadSendingContext;
@@ -78,10 +95,7 @@ describe("Quick Replies update checker", () => {
       currentVersion: "0.1.1",
       enabled: () => false,
       fetchLatestVersion: async () => { fetches += 1; return "0.1.2"; },
-      runCommand: async (command, args) => {
-        commands.push([command, ...args]);
-        return { stdout: args[1] === "inspect" ? inspection() : "", stderr: "" };
-      },
+      runCommand: managedRunner(commands),
     });
     setUpdateCheckerStateDirForTests(checker, stateDir());
     await checker.waitForIdle();
@@ -128,10 +142,7 @@ describe("Quick Replies update checker", () => {
       currentVersion: "0.1.1",
       enabled: () => true,
       fetchLatestVersion: async () => "0.1.2",
-      runCommand: async (command, args) => {
-        commands.push([command, ...args]);
-        return { stdout: args[1] === "inspect" ? inspection() : "", stderr: "" };
-      },
+      runCommand: managedRunner(commands),
     });
     setUpdateCheckerStateDirForTests(checker, stateDir());
     await checker.waitForIdle();
@@ -147,7 +158,8 @@ describe("Quick Replies update checker", () => {
     assert.deepEqual(await registration.handler(rawContext), { handled: true });
     assert.deepEqual(commands, [
       ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
-      ["openclaw", "plugins", "update", "openclaw-quick-replies@0.1.2"],
+      ["openclaw", "plugins", "install", "openclaw-quick-replies@0.1.2", "--force"],
+      ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
     ]);
     assert.match(edits[0]?.text ?? "", /v0\.1\.2 was installed/);
     assert.equal(edits[0]?.buttons[0]?.[0]?.callback_data, "oqru:v1:restart:0.1.2");
@@ -156,7 +168,7 @@ describe("Quick Replies update checker", () => {
     assert.deepEqual(await registration.handler(rawContext), { handled: true });
     assert.deepEqual(commands.at(-1), ["openclaw", "gateway", "restart"]);
     assert.deepEqual(await registration.handler(rawContext), { handled: true });
-    assert.equal(commands.length, 3);
+    assert.equal(commands.length, 4);
   });
 
   it("rejects unauthorized, unprompted, and repeated install callbacks", async () => {
@@ -165,10 +177,7 @@ describe("Quick Replies update checker", () => {
       currentVersion: "0.1.1",
       enabled: () => true,
       fetchLatestVersion: async () => "0.1.2",
-      runCommand: async (command, args) => {
-        commands.push([command, ...args]);
-        return { stdout: args[1] === "inspect" ? inspection() : "", stderr: "" };
-      },
+      runCommand: managedRunner(commands),
     });
     setUpdateCheckerStateDirForTests(checker, stateDir());
     await checker.waitForIdle();
@@ -187,7 +196,8 @@ describe("Quick Replies update checker", () => {
     await registration.handler({ ...base, auth: { isAuthorizedSender: true } });
     assert.deepEqual(commands, [
       ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
-      ["openclaw", "plugins", "update", "openclaw-quick-replies@0.1.2"],
+      ["openclaw", "plugins", "install", "openclaw-quick-replies@0.1.2", "--force"],
+      ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
     ]);
   });
 
@@ -199,10 +209,7 @@ describe("Quick Replies update checker", () => {
       enabled: () => true,
       now: () => now,
       fetchLatestVersion: async () => "0.1.2",
-      runCommand: async (command, args) => {
-        commands.push([command, ...args]);
-        return { stdout: args[1] === "inspect" ? inspection() : "", stderr: "" };
-      },
+      runCommand: managedRunner(commands),
     });
     setUpdateCheckerStateDirForTests(checker, stateDir());
     await checker.waitForIdle();
@@ -221,10 +228,7 @@ describe("Quick Replies update checker", () => {
       enabled: () => true,
       now: () => now,
       fetchLatestVersion: async () => "0.1.2",
-      runCommand: async (command, args) => {
-        commands.push([command, ...args]);
-        return { stdout: args[1] === "inspect" ? inspection() : "", stderr: "" };
-      },
+      runCommand: managedRunner(commands),
     });
     setUpdateCheckerStateDirForTests(checker, stateDir());
     await checker.waitForIdle();
@@ -234,7 +238,7 @@ describe("Quick Replies update checker", () => {
     now += UPDATE_RESTART_APPROVAL_TTL_MS + 1;
     assert.equal(checker.canRestart("0.1.2"), false);
     await assert.rejects(checker.restart("0.1.2"), /expired/);
-    assert.equal(commands.length, 2);
+    assert.equal(commands.length, 3);
   });
 
   it("does not let Telegram edit failures misreport installs or block confirmed restarts", async () => {
@@ -243,10 +247,7 @@ describe("Quick Replies update checker", () => {
       currentVersion: "0.1.1",
       enabled: () => true,
       fetchLatestVersion: async () => "0.1.2",
-      runCommand: async (command, args) => {
-        commands.push([command, ...args]);
-        return { stdout: args[1] === "inspect" ? inspection() : "", stderr: "" };
-      },
+      runCommand: managedRunner(commands),
     });
     setUpdateCheckerStateDirForTests(checker, stateDir());
     await checker.waitForIdle();
@@ -261,7 +262,8 @@ describe("Quick Replies update checker", () => {
     assert.deepEqual(await registration.handler(rawContext), { handled: true });
     assert.deepEqual(commands, [
       ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
-      ["openclaw", "plugins", "update", "openclaw-quick-replies@0.1.2"],
+      ["openclaw", "plugins", "install", "openclaw-quick-replies@0.1.2", "--force"],
+      ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
     ]);
 
     rawContext.callback.data = "oqru:v1:restart:0.1.2";
@@ -275,10 +277,7 @@ describe("Quick Replies update checker", () => {
       currentVersion: "0.1.1",
       enabled: () => true,
       fetchLatestVersion: async () => "0.1.2",
-      runCommand: async (command, args) => {
-        commands.push([command, ...args]);
-        return { stdout: args[1] === "inspect" ? inspection("clawhub") : "", stderr: "" };
-      },
+      runCommand: managedRunner(commands, "clawhub"),
     });
     setUpdateCheckerStateDirForTests(checker, stateDir());
     await checker.waitForIdle();
@@ -289,6 +288,120 @@ describe("Quick Replies update checker", () => {
     assert.deepEqual(commands, [
       ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
       ["openclaw", "plugins", "install", "clawhub:openclaw-quick-replies@0.1.2", "--force"],
+      ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
     ]);
+  });
+
+  it("rejects an exit-zero install that did not install the approved version", async () => {
+    const commands: string[][] = [];
+    const events: Array<{ event: string; fields: Record<string, unknown> }> = [];
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: managedRunner(commands, "npm", "0.1.1"),
+      log: (event, fields) => events.push({ event, fields }),
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+
+    await assert.rejects(checker.install("0.1.2"), /requested, but manifest v0\.1\.1 is installed/);
+    assert.equal(checker.canRestart("0.1.2"), false);
+    assert.ok(events.some(({ event }) => event === "update_install_failed"));
+  });
+
+  it("updates when plain inspection omits the optional install-record version", async () => {
+    const commands: string[][] = [];
+    let installed = false;
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: async (command, args) => {
+        commands.push([command, ...args]);
+        if (args[1] === "install") installed = true;
+        return {
+          stdout: args[1] === "inspect"
+            ? inspectionWithoutInstallVersion("npm", installed ? "0.1.2" : "0.1.1")
+            : "",
+          stderr: "",
+        };
+      },
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+
+    await checker.install("0.1.2");
+    assert.equal(checker.canRestart("0.1.2"), true);
+    assert.deepEqual(commands[1], ["openclaw", "plugins", "install", "openclaw-quick-replies@0.1.2", "--force"]);
+  });
+
+  it("rejects a present malformed install-record version", async () => {
+    const commands: string[][] = [];
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: async (command, args) => {
+        commands.push([command, ...args]);
+        return {
+          stdout: args[1] === "inspect"
+            ? JSON.stringify({ plugin: { version: "0.1.1" }, install: { source: "npm", version: "latest" } })
+            : "",
+          stderr: "",
+        };
+      },
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+
+    await assert.rejects(checker.install("0.1.2"), /source cannot be verified/);
+    assert.deepEqual(commands, [["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"]]);
+    assert.equal(checker.canRestart("0.1.2"), false);
+  });
+
+  it("keeps valid callbacks and installs working when diagnostic logging throws", async () => {
+    const commands: string[][] = [];
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: managedRunner(commands),
+      log: () => { throw new Error("logger unavailable"); },
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+
+    const result = await createUpdateInteractiveHandler(checker).handler({
+      auth: { isAuthorizedSender: true },
+      callback: { data: "oqru:v1:install:0.1.2", messageText: "Update available" },
+      respond: { editMessage: async () => {} },
+    });
+    assert.deepEqual(result, { handled: true });
+    assert.equal(checker.canRestart("0.1.2"), true);
+  });
+
+  it("logs callback rejection reasons without callback or message contents", async () => {
+    const events: Array<{ event: string; fields: Record<string, unknown> }> = [];
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      log: (event, fields) => events.push({ event, fields }),
+    });
+    const registration = createUpdateInteractiveHandler(checker);
+    await registration.handler({
+      auth: { isAuthorizedSender: false },
+      callback: { data: "oqru:v1:install:0.1.2", messageText: "private text" },
+      respond: { editMessage: async () => {} },
+    });
+    assert.deepEqual(events.at(-1), {
+      event: "update_callback_rejected",
+      fields: { action: "install", version: "0.1.2", reason: "unauthorized" },
+    });
+    assert.doesNotMatch(JSON.stringify(events), /private text|oqru:v1/);
   });
 });

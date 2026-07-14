@@ -5,6 +5,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 ## Unreleased
 
 - Fixed token-backed ClawHub publishing to use the CLI's documented temporary configuration file while keeping the repository secret out of artifacts and logs.
+- Fixed self-updates to force-reinstall the approved exact version from the existing npm or ClawHub source, verify the resulting installed version, and log privacy-safe Telegram callback outcomes before offering a separately authorized Gateway restart.
 
 ## 0.1.2
 

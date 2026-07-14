@@ -25,4 +25,4 @@ The plugin suppresses non-Telegram delivery, empty or oversized text, media, voi
 
 The handler rejects wrong namespaces or versions, padding, invalid base64url characters, invalid UTF-8, non-canonical encodings, leading/trailing whitespace, values over 42 bytes, unauthorized senders, missing source context, and repeated source-message selections.
 
-Update callbacks additionally require a canonical stable version and recent matching prompt state. Installation uses the exact approved version rather than a moving registry tag. Repeated installs, unprompted versions, expired prompts, and restart callbacks without a completed matching install are rejected.
+Update callbacks additionally require a canonical stable version and recent matching prompt state. Installation force-reinstalls the exact approved version from the existing managed npm or ClawHub source, verifies the resulting manifest version, and cross-checks the install-record version when present. Repeated installs, unprompted versions, expired prompts, unverified installs, and restart callbacks without a completed matching install are rejected.
