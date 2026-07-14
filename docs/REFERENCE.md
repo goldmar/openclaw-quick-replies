@@ -8,13 +8,14 @@
 - Node.js floor: `>=22.22.3`
 - Supported channel: `telegram`
 - Hook: `reply_payload_sending`
-- Interactive namespace: `oqr`
+- Interactive namespaces: `oqr` and `oqru`
 - Callback form: `oqr:v1:<base64url>`
+- Update callback forms: `oqru:v1:install:<stable-version>` and `oqru:v1:restart:<stable-version>`
 - Maximum callback value: 42 UTF-8 bytes
 
 ## Public config
 
-The public keys are `enabled`, `maxSuggestions`, `minConfidence`, `model`, `maxInputChars`, `maxLabelChars`, `maxValueBytes`, and `evaluationTimeoutMs`. Their defaults and ranges are defined in `openclaw.plugin.json` and summarized in the README.
+The public keys are `enabled`, `maxSuggestions`, `minConfidence`, `model`, `maxInputChars`, `maxLabelChars`, `maxValueBytes`, `evaluationTimeoutMs`, and `updateChecks`. Their defaults and ranges are defined in `openclaw.plugin.json` and summarized in the README.
 
 ## Suppression rules
 
@@ -23,3 +24,5 @@ The plugin suppresses non-Telegram delivery, empty or oversized text, media, voi
 ## Callback rules
 
 The handler rejects wrong namespaces or versions, padding, invalid base64url characters, invalid UTF-8, non-canonical encodings, leading/trailing whitespace, values over 42 bytes, unauthorized senders, missing source context, and repeated source-message selections.
+
+Update callbacks additionally require a canonical stable version and recent matching prompt state. Installation uses the exact approved version rather than a moving registry tag. Repeated installs, unprompted versions, expired prompts, and restart callbacks without a completed matching install are rejected.

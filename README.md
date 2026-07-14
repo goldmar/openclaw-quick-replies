@@ -36,6 +36,7 @@ Discord support can be added when OpenClaw exposes a generic inbound reply-submi
 - **Avoid button overload.** Status updates, completion messages, open-ended questions, media, and messages that already have controls stay unchanged.
 - **Keep control with the user.** A quick reply is ordinary reply text. It never bypasses or replaces OpenClaw's approval and permission controls.
 - **Fail gracefully.** If suggestions are slow, uncertain, incomplete, or unavailable, the original message is delivered normally without buttons.
+- **Stay current safely.** A lightweight daily check can offer an update button, but installation and Gateway restart remain separate, explicit choices.
 
 ## What the experience looks like
 
@@ -122,6 +123,7 @@ No configuration is required. To change the defaults, add settings under `plugin
 | `maxLabelChars` | `24` | Longest visible button label (1–64). |
 | `maxValueBytes` | `42` | Maximum submitted answer size (1–42 UTF-8 bytes). |
 | `evaluationTimeoutMs` | `20000` | How long to wait before sending the original message without buttons (100–30000 ms). |
+| `updateChecks` | `true` | Checks npm once per day for a newer stable version and offers an update button on a suitable Telegram message. |
 
 If you choose a specific `model`, OpenClaw requires you to allow that exact model for this plugin:
 
@@ -150,6 +152,8 @@ Each eligible message can make one additional model request. The cost and latenc
 The evaluator receives the outgoing message text and the Telegram channel name. It runs in an isolated temporary session with tools and message delivery disabled. If an outgoing message must not be sent to your configured model provider, do not use Quick Replies for that conversation.
 
 Quick Replies does not send button values to its own remote service. It keeps recent source-message identifiers in process memory for five minutes to prevent a repeated tap from submitting the same answer twice.
+
+When `updateChecks` is enabled, the plugin requests public package metadata from the npm registry at most once per day. It sends no conversation content, user identifier, or configuration with that request. Disable `updateChecks` if you prefer to manage updates entirely yourself.
 
 ## Safe selections
 
@@ -180,7 +184,9 @@ Quick Replies requires OpenClaw 2026.7.1 or newer and Node.js 22.22.3 or newer. 
 openclaw plugins update openclaw-quick-replies
 ```
 
-OpenClaw does not run this command periodically. Run it when you want to check for and install an update, or schedule `openclaw plugins update --all` centrally for all of your plugins. Quick Replies has no separate updater and sends no update telemetry.
+OpenClaw does not schedule this command by itself. Run it when you want to check manually, or schedule `openclaw plugins update --all` centrally for all of your plugins.
+
+Quick Replies can also check npm once per day in the background. When a newer stable version exists, it adds an update control to a suitable Telegram message that does not already have buttons. The control delegates installation to OpenClaw's native plugin manager with the exact version you approved, preserving npm installs through `plugins update` and ClawHub installs through its documented exact-version reinstall path. A separate confirmation is required before restarting the Gateway. Set `updateChecks` to `false` to disable these notices.
 
 ## Development
 

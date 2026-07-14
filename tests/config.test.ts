@@ -17,6 +17,7 @@ describe("public configuration", () => {
       "maxLabelChars",
       "maxValueBytes",
       "evaluationTimeoutMs",
+      "updateChecks",
     ] as const) {
       assert.equal(properties[key].default, DEFAULT_CONFIG[key]);
     }
@@ -38,6 +39,7 @@ describe("public configuration", () => {
       maxLabelChars: 99,
       maxValueBytes: 99,
       evaluationTimeoutMs: 99_999,
+      updateChecks: false,
     }), {
       enabled: false,
       maxSuggestions: 10,
@@ -47,6 +49,7 @@ describe("public configuration", () => {
       maxLabelChars: 64,
       maxValueBytes: 42,
       evaluationTimeoutMs: 30_000,
+      updateChecks: false,
     });
   });
 
