@@ -10,6 +10,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Added an `updateChecks` setting, enabled by default, and documented the npm registry metadata request used by the checker.
 - Fixed release automation to publish the exact verified tarball to npm and ClawHub, retain verified artifacts through delayed environment approval, and attribute the pre-tag ClawHub dry run to the exact commit without claiming a not-yet-created release ref.
 - Clarified how operator-triggered and centrally scheduled native plugin updates work.
+- Made Gateway restart confirmations single-use with a one-hour expiry, and suppressed update notices whenever Telegram channel data already contains interactive controls.
 
 ## 0.1.1
 

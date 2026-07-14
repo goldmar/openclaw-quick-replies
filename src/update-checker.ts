@@ -11,6 +11,7 @@ export const NPM_PACKAGE_URL = `https://registry.npmjs.org/${encodeURIComponent(
 export const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60_000;
 export const UPDATE_PROMPT_INTERVAL_MS = 7 * UPDATE_CHECK_INTERVAL_MS;
 export const UPDATE_APPROVAL_TTL_MS = UPDATE_PROMPT_INTERVAL_MS;
+export const UPDATE_RESTART_APPROVAL_TTL_MS = 60 * 60_000;
 export const UPDATE_FETCH_TIMEOUT_MS = 10_000;
 const UPDATE_STATE_FILE = join("plugins", PACKAGE_NAME, "update-state.json");
 
@@ -21,6 +22,7 @@ type UpdateState = {
   lastPromptedAt?: string;
   updateInstalledVersion?: string;
   restartPromptedVersion?: string;
+  restartPromptedAt?: string;
   lastError?: string;
 };
 
@@ -194,6 +196,7 @@ export class QuickRepliesUpdateChecker {
           ...this.readState(),
           updateInstalledVersion: normalized,
           restartPromptedVersion: normalized,
+          restartPromptedAt: new Date(this.now()).toISOString(),
         });
       })
       .finally(() => this.installInFlight.delete(normalized));
@@ -202,15 +205,23 @@ export class QuickRepliesUpdateChecker {
   }
 
   canRestart(version: string): boolean {
+    if (!this.options.enabled()) return false;
     const normalized = normalizeStableVersion(version);
     if (!normalized) return false;
     const state = this.readState();
-    return state.updateInstalledVersion === normalized && state.restartPromptedVersion === normalized;
+    if (state.updateInstalledVersion !== normalized || state.restartPromptedVersion !== normalized) return false;
+    const promptedAt = state.restartPromptedAt ? Date.parse(state.restartPromptedAt) : Number.NaN;
+    const age = this.now() - promptedAt;
+    return Number.isFinite(promptedAt) && age >= 0 && age <= UPDATE_RESTART_APPROVAL_TTL_MS;
   }
 
   async restart(version: string): Promise<void> {
     const normalized = normalizeStableVersion(version);
-    if (!normalized || !this.canRestart(normalized)) throw new Error("Restart approval is missing or invalid.");
+    if (!normalized || !this.canRestart(normalized)) throw new Error("Restart approval is missing, expired, or invalid.");
+    const state = this.readState();
+    delete state.restartPromptedVersion;
+    delete state.restartPromptedAt;
+    this.writeState(state);
     await this.runCommand("openclaw", ["gateway", "restart"]);
   }
 
@@ -272,6 +283,7 @@ function normalizeState(raw: unknown): UpdateState {
   for (const key of [
     "lastCheckedAt",
     "lastPromptedAt",
+    "restartPromptedAt",
   ] as const) {
     const value = (raw as Record<string, unknown>)[key];
     if (typeof value === "string" && value.length <= 40 && Number.isFinite(Date.parse(value))) state[key] = value;

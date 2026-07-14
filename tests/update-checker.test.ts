@@ -16,6 +16,7 @@ import {
   UPDATE_APPROVAL_TTL_MS,
   UPDATE_CALLBACK_NAMESPACE,
   UPDATE_CHECK_INTERVAL_MS,
+  UPDATE_RESTART_APPROVAL_TTL_MS,
 } from "../src/update-checker";
 import { createUpdateInteractiveHandler } from "../src/update-interactive-handler";
 import { createUpdateNoticeHook } from "../src/update-notice";
@@ -102,6 +103,12 @@ describe("Quick Replies update checker", () => {
     const hook = createUpdateNoticeHook(checker);
 
     assert.equal(hook(event("Status", "discord"), { ...context, channelId: "discord" }), undefined);
+    const channelInteractive = event("Choose one");
+    channelInteractive.payload.channelData = {
+      telegram: { reply_markup: { inline_keyboard: [[{ text: "Existing", callback_data: "existing" }]] } },
+    };
+    assert.equal(hook(channelInteractive, context), undefined);
+
     const result = hook(event("Deployment completed."), context);
     assert.match(result?.payload?.text ?? "", /Quick Replies v0\.1\.2 is available/);
     const buttonBlock = result?.payload?.presentation?.blocks.find((block) => block.type === "buttons");
@@ -148,6 +155,8 @@ describe("Quick Replies update checker", () => {
     rawContext.callback.data = "oqru:v1:restart:0.1.2";
     assert.deepEqual(await registration.handler(rawContext), { handled: true });
     assert.deepEqual(commands.at(-1), ["openclaw", "gateway", "restart"]);
+    assert.deepEqual(await registration.handler(rawContext), { handled: true });
+    assert.equal(commands.length, 3);
   });
 
   it("rejects unauthorized, unprompted, and repeated install callbacks", async () => {
@@ -202,6 +211,30 @@ describe("Quick Replies update checker", () => {
     now += UPDATE_APPROVAL_TTL_MS + 1;
     await assert.rejects(checker.install("0.1.2"), /expired/);
     assert.deepEqual(commands, []);
+  });
+
+  it("expires restart approval independently of update approval", async () => {
+    let now = Date.parse("2026-07-13T12:00:00.000Z");
+    const commands: string[][] = [];
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      now: () => now,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: async (command, args) => {
+        commands.push([command, ...args]);
+        return { stdout: args[1] === "inspect" ? inspection() : "", stderr: "" };
+      },
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+    await checker.install("0.1.2");
+
+    now += UPDATE_RESTART_APPROVAL_TTL_MS + 1;
+    assert.equal(checker.canRestart("0.1.2"), false);
+    await assert.rejects(checker.restart("0.1.2"), /expired/);
+    assert.equal(commands.length, 2);
   });
 
   it("does not let Telegram edit failures misreport installs or block confirmed restarts", async () => {

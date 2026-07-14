@@ -4,6 +4,7 @@ import type {
   PluginHookReplyPayloadSendingResult,
 } from "openclaw/plugin-sdk/core";
 import { buildUpdateCallbackData, QuickRepliesUpdateChecker } from "./update-checker";
+import { hasExistingInteractivity } from "./interactivity";
 
 export function createUpdateNoticeHook(checker: QuickRepliesUpdateChecker) {
   return (
@@ -13,7 +14,7 @@ export function createUpdateNoticeHook(checker: QuickRepliesUpdateChecker) {
     checker.maybeCheck();
     if ((event.channel ?? ctx.channelId) !== "telegram") return;
     if (typeof event.payload.text !== "string" || !event.payload.text.trim()) return;
-    if (hasInteractivity(event.payload)) return;
+    if (hasExistingInteractivity(event.payload)) return;
 
     const version = checker.claimPromptVersion();
     const callbackData = version ? buildUpdateCallbackData("install", version) : null;
@@ -41,9 +42,4 @@ export function createUpdateNoticeHook(checker: QuickRepliesUpdateChecker) {
       },
     };
   };
-}
-
-function hasInteractivity(payload: PluginHookReplyPayloadSendingEvent["payload"]): boolean {
-  if (payload.btw || payload.interactive?.blocks.length) return true;
-  return Boolean(payload.presentation?.blocks.some((block) => block.type === "buttons" || block.type === "select"));
 }
