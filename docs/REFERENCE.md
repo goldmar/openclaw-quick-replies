@@ -21,6 +21,10 @@ The public keys are `enabled`, `maxSuggestions`, `minConfidence`, `model`, `maxI
 
 The plugin suppresses non-Telegram delivery, empty or oversized text, media, voice/TTS supplements, errors, reasoning/commentary, status/fallback/compaction notices, existing portable controls, channel-native controls, non-explicit asks, evaluator failures, low confidence, invalid suggestions, incomplete explicit option sets, and values that cannot fit the callback contract.
 
+## Evaluation diagnostics
+
+`evaluation_started`, `evaluation_cache_hit`, and `evaluation_pending_hit` describe evaluator dispatch. `evaluator_completed` reports bounded setup, embedded-run, validation, and total milliseconds plus the model and outcome; `evaluator_cleanup` reports temporary-directory cleanup. Final `decorated` and `suppressed` records include evaluation and total synchronous hook milliseconds where applicable. Diagnostics never include the evaluated text or raw model response, and they do not include downstream Telegram delivery time.
+
 ## Callback rules
 
 The handler rejects wrong namespaces or versions, padding, invalid base64url characters, invalid UTF-8, non-canonical encodings, leading/trailing whitespace, values over 42 bytes, unauthorized senders, missing source context, and repeated source-message selections.
