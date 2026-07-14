@@ -186,7 +186,7 @@ openclaw plugins update openclaw-quick-replies
 
 OpenClaw does not schedule this command by itself. Run it when you want to check manually, or schedule `openclaw plugins update --all` centrally for all of your plugins.
 
-Quick Replies can also check npm once per day in the background. When a newer stable version exists, it adds an update control to a suitable Telegram message that does not already have buttons. The control delegates installation to OpenClaw's native plugin manager with the exact version you approved, preserving npm installs through `plugins update` and ClawHub installs through its documented exact-version reinstall path. A separate confirmation is required before restarting the Gateway. Set `updateChecks` to `false` to disable these notices.
+Quick Replies can also check npm once per day in the background. When a newer stable version exists, it adds an update control to a suitable Telegram message that does not already have buttons. The control delegates installation to OpenClaw's native plugin manager with the exact version you approved, preserving the managed npm or ClawHub source through an exact-version force reinstall. It then verifies the installed version before offering a separate Gateway restart confirmation. Set `updateChecks` to `false` to disable these notices.
 
 ## Development
 

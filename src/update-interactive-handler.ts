@@ -22,32 +22,50 @@ export function createUpdateInteractiveHandler(
 
 async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChecker): Promise<UpdateInteractionResult> {
   const ctx = parseContext(raw);
-  if (!ctx) return { handled: false };
+  if (!ctx) {
+    checker.logCallback("update_callback_rejected", { reason: "invalid_context" });
+    return { handled: false };
+  }
   const callback = parseUpdateCallbackData(ctx.data);
-  if (!callback) return { handled: false };
-  if (!ctx.authorized) return { handled: true };
+  if (!callback) {
+    checker.logCallback("update_callback_rejected", { reason: "invalid_payload" });
+    return { handled: false };
+  }
+  checker.logCallback("update_callback_received", { action: callback.action, version: callback.version });
+  if (!ctx.authorized) {
+    checker.logCallback("update_callback_rejected", { action: callback.action, version: callback.version, reason: "unauthorized" });
+    return { handled: true };
+  }
 
   if (callback.action === "install") {
-    if (!checker.canInstall(callback.version)) return { handled: true };
+    if (!checker.canInstall(callback.version)) {
+      checker.logCallback("update_callback_rejected", { action: callback.action, version: callback.version, reason: "not_approved" });
+      return { handled: true };
+    }
     try {
       await checker.install(callback.version);
     } catch (error) {
-      await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nThe Quick Replies update failed. Check the Gateway logs and try again.`);
+      await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nThe Quick Replies update failed or could not be verified. Check the Gateway logs and try again.`, checker, callback);
       return { handled: true };
     }
     const restartData = buildUpdateCallbackData("restart", callback.version)!;
-    await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nQuick Replies v${callback.version} was installed. Restart the Gateway to load it.`, [[
+    await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nQuick Replies v${callback.version} was installed and verified. Restart the Gateway to load it.`, checker, callback, [[
       { text: "Restart Gateway", callback_data: restartData },
     ]]);
     return { handled: true };
   }
 
-  if (!checker.canRestart(callback.version)) return { handled: true };
-  await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nRestarting the Gateway to load Quick Replies v${callback.version}…`);
+  if (!checker.canRestart(callback.version)) {
+    checker.logCallback("update_callback_rejected", { action: callback.action, version: callback.version, reason: "not_approved" });
+    return { handled: true };
+  }
+  checker.logCallback("gateway_restart_approved", { version: callback.version });
+  await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nRestarting the Gateway to load Quick Replies v${callback.version}…`, checker, callback);
   try {
     await checker.restart(callback.version);
   } catch (error) {
-    await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nThe Gateway restart failed. Run: openclaw gateway restart`);
+    checker.logCallback("gateway_restart_failed", { version: callback.version, error: error instanceof Error ? error.message : String(error) });
+    await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nThe Gateway restart failed. Run: openclaw gateway restart`, checker, callback);
   }
   return { handled: true };
 }
@@ -71,11 +89,18 @@ function parseContext(raw: unknown): {
 async function safeEdit(
   ctx: { editMessage: (params: { text: string; buttons: TelegramButton[][] }) => Promise<void> },
   text: string,
+  checker: QuickRepliesUpdateChecker,
+  callback: { action: "install" | "restart"; version: string },
   buttons: TelegramButton[][] = [],
 ): Promise<void> {
   try {
     await ctx.editMessage({ text, buttons });
-  } catch {
+  } catch (error) {
+    checker.logCallback("update_callback_edit_failed", {
+      action: callback.action,
+      version: callback.version,
+      error: error instanceof Error ? error.message : String(error),
+    });
     // The command result is authoritative even if Telegram can no longer edit the source message.
   }
 }
