@@ -168,9 +168,11 @@ async function resolveDecision(params: {
   const evaluator = deps.evaluator ?? new ManagedAgentQuickReplyEvaluator(api, config, deps.log);
   const evaluation = evaluateWithTimeout(evaluator, input, config.evaluationTimeoutMs)
     .then((result) => {
-      const completedAt = deps.now?.() ?? Date.now();
-      cache.set(key, { result, expiresAt: completedAt + DECISION_CACHE_TTL_MS });
-      trimOldestEntries(cache, MAX_CACHE_ENTRIES);
+      if (result.decision) {
+        const completedAt = deps.now?.() ?? Date.now();
+        cache.set(key, { result, expiresAt: completedAt + DECISION_CACHE_TTL_MS });
+        trimOldestEntries(cache, MAX_CACHE_ENTRIES);
+      }
       return result;
     })
     .finally(() => pending.delete(key));

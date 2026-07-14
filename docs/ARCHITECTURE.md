@@ -4,7 +4,7 @@ Quick Replies is a Telegram-only OpenClaw hook plugin with a small update-check 
 
 The `reply_payload_sending` hook rejects unsupported channels, non-plain payloads, existing controls, long input, and messages without an explicit ask. Eligible text is evaluated through `api.runtime.agent.runEmbeddedAgent` as a raw `modelRun` with tools and delivery disabled. The run receives an immutable config projection without OpenClaw user MCP servers; the shared OpenClaw config is never changed. The validated decision becomes portable `presentation.blocks` callback buttons.
 
-Evaluation has a configurable timeout, cancellation of timed-out embedded runs, concurrent promise deduplication, and a bounded five-minute semantic result cache. Message identifiers are not part of the cache key, so the same text and evaluator settings can reuse a decision. Timeout or any evaluator failure leaves the outgoing payload unchanged.
+Evaluation has a configurable timeout, cancellation of timed-out embedded runs, concurrent promise deduplication, and a bounded five-minute semantic result cache. Message identifiers are not part of the cache key, so the same text and evaluator settings can reuse a validated eligible or ineligible decision. Failures and timeouts are never cached and are retried by later messages. Timeout or any evaluator failure leaves the outgoing payload unchanged.
 
 Structured diagnostics divide plugin filtering/cache time, embedded-run time, validation, temporary-directory cleanup, and total synchronous hook time. They intentionally contain no prompt or model-output text. Telegram delivery begins only after `reply_payload_sending` returns, so transport latency is downstream and is not included in the plugin's `totalMs`.
 

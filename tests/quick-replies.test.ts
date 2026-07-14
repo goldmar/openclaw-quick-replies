@@ -50,8 +50,10 @@ describe("reply payload decoration", () => {
   });
 
   it("fails open after the configured evaluator timeout", async () => {
+    let calls = 0;
     let signal: AbortSignal | undefined;
     const evaluator: QuickReplyEvaluator = { evaluate: async (input) => {
+      calls++;
       signal = input.abortSignal;
       return new Promise(() => {});
     } };
@@ -60,6 +62,8 @@ describe("reply payload decoration", () => {
     assert.equal(await hook(event("Continue?"), context), undefined);
     assert.ok(Date.now() - started < 500);
     assert.equal(signal?.aborted, true);
+    assert.equal(await hook(event("Continue?"), { ...context, messageId: "message-2" }), undefined);
+    assert.equal(calls, 2);
   });
 
   it("deduplicates concurrent evaluations and caches results for identical input", async () => {
@@ -90,6 +94,23 @@ describe("reply payload decoration", () => {
     host.pluginConfig = { model: "openai/model-a", maxSuggestions: 4 };
     await hook(event("Continue?"), context);
     assert.equal(calls, 4);
+  });
+
+  it("does not cache transient evaluator failures across messages", async () => {
+    let calls = 0;
+    const hook = createQuickReplyPayloadHook(api(), {
+      evaluator: {
+        async evaluate() {
+          calls++;
+          if (calls === 1) throw new Error("transient evaluator failure");
+          return eligible();
+        },
+      },
+    });
+
+    assert.equal(await hook(event("Continue?"), context), undefined);
+    assert.ok(await hook(event("Continue?"), { ...context, messageId: "message-2" }));
+    assert.equal(calls, 2);
   });
 
   it("logs bounded timing and cache diagnostics without message content", async () => {

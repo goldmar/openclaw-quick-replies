@@ -147,7 +147,7 @@ Use `openclaw models list` to find a model available to your installation. A sma
 
 ## Model usage, cost, and privacy
 
-Each eligible message can make one additional model request. The cost and latency depend on the model provider configured in OpenClaw. Identical requests happening at the same time share one evaluation, and results are cached briefly to avoid unnecessary repeat calls.
+Each eligible message can make one additional model request. The cost and latency depend on the model provider configured in OpenClaw. Identical requests happening at the same time share one evaluation, and validated eligible or ineligible decisions are cached briefly to avoid unnecessary repeat calls. Failures and timeouts are not cached.
 
 The evaluator receives the outgoing message text and the Telegram channel name. It runs in an isolated temporary raw-model session with tools and message delivery disabled. OpenClaw user MCP servers are removed from the per-run config without changing shared configuration. OpenClaw 2026.7.1 can still inherit MCP servers from Codex's own user configuration; see [the architecture note](docs/ARCHITECTURE.md#openclaw-202671-codex-mcp-limitation). If an outgoing message must not be sent to your configured model provider, do not use Quick Replies for that conversation.
 
