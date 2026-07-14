@@ -20,4 +20,6 @@ For ordinary bugs and support questions, use the repository issue templates inst
 - Callback values use canonical `oqr:v1:<base64url>` data and are limited to 42 UTF-8 bytes.
 - Unauthorized, malformed, repeated, and source-less callbacks do not submit agent input.
 - Quick replies are ordinary inbound text and never replace OpenClaw approvals or authorization policy.
-- No updater, background network service, remote callback store, or plugin credential is included.
+- The optional update checker requests public npm metadata at most once per day and sends no conversation content, user identifier, or configuration.
+- Update controls accept only a recent prompted stable version, install that exact version through OpenClaw's native updater, and require a separate authorized Gateway-restart confirmation.
+- The plugin contains no registry credential, remote callback store, shell command, or unattended installation path.

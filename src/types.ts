@@ -7,6 +7,7 @@ export type QuickReplyConfig = {
   maxLabelChars: number;
   maxValueBytes: number;
   evaluationTimeoutMs: number;
+  updateChecks: boolean;
 };
 
 export type QuickReplySuggestion = {

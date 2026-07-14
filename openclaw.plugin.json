@@ -2,7 +2,7 @@
   "id": "openclaw-quick-replies",
   "name": "Quick Replies",
   "description": "Contextual one-tap reply suggestions for Telegram conversations",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "activation": {
     "onStartup": true
   },
@@ -63,6 +63,11 @@
         "minimum": 100,
         "maximum": 30000,
         "description": "Maximum time spent evaluating a message before it is sent without buttons."
+      },
+      "updateChecks": {
+        "type": "boolean",
+        "default": true,
+        "description": "Check npm once per day for a newer stable release and offer an exact-version update button in Telegram."
       }
     }
   },
@@ -95,6 +100,10 @@
     },
     "evaluationTimeoutMs": {
       "label": "Evaluation timeout (ms)",
+      "advanced": true
+    },
+    "updateChecks": {
+      "label": "Check for updates",
       "advanced": true
     }
   }

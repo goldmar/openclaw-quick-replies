@@ -9,6 +9,7 @@ export const DEFAULT_CONFIG: QuickReplyConfig = {
   maxLabelChars: 24,
   maxValueBytes: 42,
   evaluationTimeoutMs: 20_000,
+  updateChecks: true,
 };
 
 export function resolveQuickReplyConfig(raw: unknown): QuickReplyConfig {
@@ -22,6 +23,7 @@ export function resolveQuickReplyConfig(raw: unknown): QuickReplyConfig {
     maxLabelChars: readInteger(value.maxLabelChars, DEFAULT_CONFIG.maxLabelChars, 1, 64),
     maxValueBytes: readInteger(value.maxValueBytes, DEFAULT_CONFIG.maxValueBytes, 1, 42),
     evaluationTimeoutMs: readInteger(value.evaluationTimeoutMs, DEFAULT_CONFIG.evaluationTimeoutMs, 100, 30_000),
+    updateChecks: readBoolean(value.updateChecks, DEFAULT_CONFIG.updateChecks),
   };
 }
 
