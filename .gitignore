@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.artifacts/
+.worktrees/
+.reports/
+validator-output/
+.tmp-openclaw-home/
+*.tsbuildinfo
+*.tgz
+.DS_Store
+.env
+.env.*
+!.env.example

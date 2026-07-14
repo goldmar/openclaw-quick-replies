@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report
+    url: https://github.com/goldmar/openclaw-quick-replies/security/advisories/new
+    about: Report vulnerabilities privately.
+  - name: OpenClaw documentation
+    url: https://docs.openclaw.ai/
+    about: Get help with OpenClaw installation, providers, models, and channels.

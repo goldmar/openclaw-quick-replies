@@ -1,0 +1,101 @@
+{
+  "id": "openclaw-quick-replies",
+  "name": "Quick Replies",
+  "description": "Contextual one-tap reply suggestions for Telegram conversations",
+  "version": "0.1.0",
+  "activation": {
+    "onStartup": true
+  },
+  "setup": {
+    "requiresRuntime": false
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable contextual quick reply suggestions."
+      },
+      "maxSuggestions": {
+        "type": "integer",
+        "default": 6,
+        "minimum": 1,
+        "maximum": 10,
+        "description": "Maximum number of reply buttons offered for one prompt."
+      },
+      "minConfidence": {
+        "type": "number",
+        "default": 0.7,
+        "minimum": 0,
+        "maximum": 1,
+        "description": "Minimum evaluator confidence required before buttons are shown."
+      },
+      "model": {
+        "type": "string",
+        "description": "Optional provider/model override for suggestion evaluation."
+      },
+      "maxInputChars": {
+        "type": "integer",
+        "default": 1200,
+        "minimum": 1,
+        "maximum": 12000,
+        "description": "Maximum outgoing message length evaluated for suggestions."
+      },
+      "maxLabelChars": {
+        "type": "integer",
+        "default": 24,
+        "minimum": 1,
+        "maximum": 64,
+        "description": "Maximum quick reply button label length."
+      },
+      "maxValueBytes": {
+        "type": "integer",
+        "default": 42,
+        "minimum": 1,
+        "maximum": 42,
+        "description": "Maximum UTF-8 byte length of a submitted quick reply."
+      },
+      "evaluationTimeoutMs": {
+        "type": "integer",
+        "default": 5000,
+        "minimum": 100,
+        "maximum": 30000,
+        "description": "Maximum time spent evaluating a message before it is sent without buttons."
+      }
+    }
+  },
+  "uiHints": {
+    "enabled": {
+      "label": "Enabled"
+    },
+    "maxSuggestions": {
+      "label": "Maximum suggestions"
+    },
+    "minConfidence": {
+      "label": "Minimum confidence"
+    },
+    "model": {
+      "label": "Evaluator model",
+      "placeholder": "provider/model",
+      "advanced": true
+    },
+    "maxInputChars": {
+      "label": "Maximum input characters",
+      "advanced": true
+    },
+    "maxLabelChars": {
+      "label": "Maximum label characters",
+      "advanced": true
+    },
+    "maxValueBytes": {
+      "label": "Maximum value bytes",
+      "advanced": true
+    },
+    "evaluationTimeoutMs": {
+      "label": "Evaluation timeout (ms)",
+      "advanced": true
+    }
+  }
+}

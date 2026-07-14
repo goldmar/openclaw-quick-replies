@@ -1,0 +1,88 @@
+{
+  "name": "openclaw-quick-replies",
+  "version": "0.1.0",
+  "description": "Telegram quick reply suggestions for OpenClaw conversations.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "packageManager": "pnpm@10.30.0",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "docs/assets/",
+    "CHANGELOG.md",
+    "LICENSE",
+    "openclaw.plugin.json",
+    "README.md"
+  ],
+  "scripts": {
+    "audit:prod": "pnpm audit --prod --audit-level high",
+    "build": "esbuild index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/index.js --minify --charset=utf8 --external:openclaw/plugin-sdk/plugin-entry --external:openclaw/plugin-sdk/plugin-runtime",
+    "pack:dry-run": "npm pack --dry-run --json",
+    "proof:quick-replies:doctor": "node --import tsx scripts/e2e/quick-replies-openclaw-proof.ts doctor",
+    "proof:quick-replies:local-smoke": "node --import tsx scripts/e2e/quick-replies-openclaw-proof.ts local-smoke",
+    "proof:quick-replies:dry-run": "node --import tsx scripts/e2e/quick-replies-openclaw-proof.ts run --dry-run",
+    "proof:quick-replies:all": "pnpm proof:quick-replies:doctor && pnpm proof:quick-replies:local-smoke && pnpm proof:quick-replies:dry-run",
+    "release:check": "pnpm verify && pnpm proof:quick-replies:all && pnpm validate:release-metadata -- 0.1.0 && pnpm audit:prod && pnpm pack:dry-run",
+    "test": "node scripts/run-tests.mjs",
+    "test:file": "node scripts/run-tests.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "validate:release-metadata": "node scripts/validate-release-metadata.mjs",
+    "verify": "pnpm typecheck && pnpm build && pnpm test"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "install": {
+      "clawhubSpec": "openclaw-quick-replies",
+      "npmSpec": "openclaw-quick-replies",
+      "defaultChoice": "clawhub",
+      "minHostVersion": ">=2026.7.1"
+    },
+    "compat": {
+      "pluginApi": ">=2026.7.1",
+      "minGatewayVersion": "2026.7.1"
+    },
+    "build": {
+      "openclawVersion": "2026.7.1",
+      "pluginSdkVersion": "2026.7.1"
+    }
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "esbuild": "^0.28.1",
+    "openclaw": "2026.7.1",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3"
+  },
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "quick-replies",
+    "suggested-replies",
+    "telegram",
+    "interactive-buttons"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goldmar/openclaw-quick-replies.git"
+  },
+  "homepage": "https://github.com/goldmar/openclaw-quick-replies#readme",
+  "bugs": {
+    "url": "https://github.com/goldmar/openclaw-quick-replies/issues"
+  },
+  "license": "MIT",
+  "author": "Mark Goldenstein",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
