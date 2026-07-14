@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "openclaw/plugin-sdk/*": ["../openclaw/src/plugin-sdk/*"]
+    },
+    "lib": ["ES2022"],
+    "strict": true,
+    "ignoreDeprecations": "6.0",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true
+  },
+  "include": ["index.ts", "src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"]
+}

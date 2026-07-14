@@ -1,0 +1,40 @@
+name: Workflow sanity
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Workflow sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Require approved, SHA-pinned actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          bad_owner="$(grep -RhoE 'uses:[[:space:]]+[^[:space:]#]+' .github/workflows | awk '{print $2}' | grep -Ev '^(actions|github|pnpm)/' || true)"
+          bad_pin="$(grep -RhoE 'uses:[[:space:]]+[^[:space:]#]+' .github/workflows | awk '{print $2}' | grep -Ev '@[0-9a-f]{40}$' || true)"
+          test -z "$bad_owner" || { echo "Unapproved action owner: $bad_owner"; exit 1; }
+          test -z "$bad_pin" || { echo "Action is not pinned to a full SHA: $bad_pin"; exit 1; }
+      - name: Install actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=1.7.12
+          archive="actionlint_${version}_linux_amd64.tar.gz"
+          base="https://github.com/rhysd/actionlint/releases/download/v${version}"
+          curl --retry 5 --retry-all-errors -sSfL -o "$archive" "$base/$archive"
+          curl --retry 5 --retry-all-errors -sSfL -o checksums.txt "$base/actionlint_${version}_checksums.txt"
+          grep " $archive$" checksums.txt | sha256sum -c -
+          tar -xzf "$archive" actionlint
+          sudo install -m 0755 actionlint /usr/local/bin/actionlint
+      - run: actionlint

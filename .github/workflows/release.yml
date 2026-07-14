@@ -1,0 +1,219 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version without the leading v
+        required: true
+        type: string
+      commit:
+        description: Full main commit SHA to release
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CLAWHUB_CLI_VERSION: "0.23.1"
+  PACKAGE_NAME: openclaw-quick-replies
+
+jobs:
+  verify:
+    name: Verify release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      sha256: ${{ steps.pack.outputs.sha256 }}
+      tarball: ${{ steps.pack.outputs.tarball }}
+    steps:
+      - name: Validate commit input
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: '[[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]]'
+
+      - name: Checkout selected commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require selected commit on main
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$COMMIT" origin/main
+          test "$(git rev-parse HEAD)" = "$COMMIT"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
+        with:
+          version: 10.30.0
+
+      - name: Set up verification Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.22.3
+          cache: pnpm
+
+      - name: Install and verify
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm verify
+          pnpm proof:quick-replies:all
+          pnpm validate:release-metadata -- "${{ inputs.version }}"
+          pnpm audit:prod
+
+      - name: Run ClawHub inspector
+        run: |
+          pnpm dlx "clawhub@$CLAWHUB_CLI_VERSION" package validate . --runtime --allow-execute --out .reports/clawhub --json | tee /tmp/clawhub-validation.json
+          test "$(jq -r '.status' /tmp/clawhub-validation.json)" = pass
+          test "$(jq -r '.summary.issueCount' /tmp/clawhub-validation.json)" -eq 0
+
+      - name: Pack exact artifact once
+        id: pack
+        run: |
+          mkdir artifact
+          npm pack --json --pack-destination artifact > /tmp/npm-pack.json
+          tarball="$(node -e "const p=require('/tmp/npm-pack.json'); process.stdout.write(p[0].filename)")"
+          sha256="$(sha256sum "artifact/$tarball" | cut -d' ' -f1)"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Test exact artifact in an isolated OpenClaw home
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          OPENCLAW_HOME="$(mktemp -d)"
+          export OPENCLAW_HOME
+          pnpm exec openclaw plugins install "npm-pack:$PWD/artifact/$TARBALL"
+          pnpm exec openclaw plugins enable openclaw-quick-replies
+          pnpm exec openclaw plugins inspect openclaw-quick-replies --runtime --json
+          rm -rf "$OPENCLAW_HOME"
+
+      - name: ClawHub dry run with exact source attribution
+        run: |
+          pnpm dlx "clawhub@$CLAWHUB_CLI_VERSION" package publish . \
+            --family code-plugin \
+            --name "$PACKAGE_NAME" \
+            --version "${{ inputs.version }}" \
+            --source-repo "$GITHUB_REPOSITORY" \
+            --source-ref "v${{ inputs.version }}" \
+            --source-commit "${{ inputs.commit }}" \
+            --dry-run --json
+
+      - name: Upload verified artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-${{ inputs.version }}
+          path: artifact/${{ steps.pack.outputs.tarball }}
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish release
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout selected commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+
+      - name: Set up publishing Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Download verified artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: release-${{ inputs.version }}
+          path: artifact
+
+      - name: Reverify artifact digest
+        env:
+          EXPECTED_SHA256: ${{ needs.verify.outputs.sha256 }}
+          TARBALL: ${{ needs.verify.outputs.tarball }}
+        run: test "$(sha256sum "artifact/$TARBALL" | cut -d' ' -f1)" = "$EXPECTED_SHA256"
+
+      - name: Create or verify immutable tag
+        env:
+          COMMIT: ${{ inputs.commit }}
+          TAG: v${{ inputs.version }}
+        run: |
+          existing="$(git ls-remote --tags origin "refs/tags/$TAG" | cut -f1)"
+          if [[ -n "$existing" ]]; then
+            test "$existing" = "$COMMIT"
+          else
+            git tag "$TAG" "$COMMIT"
+            git push origin "refs/tags/$TAG"
+          fi
+
+      - name: Install ClawHub CLI
+        run: npm install --global "clawhub@$CLAWHUB_CLI_VERSION"
+
+      - name: Publish or verify ClawHub artifact
+        env:
+          TARBALL: ${{ needs.verify.outputs.tarball }}
+        run: |
+          if clawhub package verify "artifact/$TARBALL" --package "$PACKAGE_NAME" --version "${{ inputs.version }}" --json; then
+            echo "Matching ClawHub artifact already exists."
+          else
+            mkdir clawhub-source
+            tar -xzf "artifact/$TARBALL" -C clawhub-source --strip-components=1
+            clawhub package publish clawhub-source \
+              --family code-plugin \
+              --name "$PACKAGE_NAME" \
+              --version "${{ inputs.version }}" \
+              --source-repo "$GITHUB_REPOSITORY" \
+              --source-ref "v${{ inputs.version }}" \
+              --source-commit "${{ inputs.commit }}" \
+              --json
+            clawhub package verify "artifact/$TARBALL" --package "$PACKAGE_NAME" --version "${{ inputs.version }}" --json
+          fi
+
+      - name: Publish or verify npm artifact
+        env:
+          TARBALL: ${{ needs.verify.outputs.tarball }}
+        run: |
+          if npm view "$PACKAGE_NAME@${{ inputs.version }}" version >/dev/null 2>&1; then
+            mkdir /tmp/npm-existing
+            npm pack "$PACKAGE_NAME@${{ inputs.version }}" --pack-destination /tmp/npm-existing >/dev/null
+            existing="$(find /tmp/npm-existing -name '*.tgz' -type f -print -quit)"
+            test "$(sha256sum "$existing" | cut -d' ' -f1)" = "$(sha256sum "artifact/$TARBALL" | cut -d' ' -f1)"
+            echo "Matching npm artifact already exists."
+          else
+            npm publish "artifact/$TARBALL" --access public --provenance
+          fi
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ inputs.version }}
+          TARBALL: ${{ needs.verify.outputs.tarball }}
+        run: |
+          awk '/^## ${{ inputs.version }}$/{found=1; next} found && /^## /{exit} found{print}' CHANGELOG.md > /tmp/release-notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes-file /tmp/release-notes.md
+            mkdir /tmp/release-existing
+            if gh release download "$TAG" --pattern "$TARBALL" --dir /tmp/release-existing >/dev/null 2>&1; then
+              test "$(sha256sum "/tmp/release-existing/$TARBALL" | cut -d' ' -f1)" = "$(sha256sum "artifact/$TARBALL" | cut -d' ' -f1)"
+            else
+              gh release upload "$TAG" "artifact/$TARBALL"
+            fi
+          else
+            gh release create "$TAG" "artifact/$TARBALL" --verify-tag --title "$TAG" --notes-file /tmp/release-notes.md
+          fi

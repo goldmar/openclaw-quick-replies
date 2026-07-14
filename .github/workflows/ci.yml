@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CLAWHUB_CLI_VERSION: "0.23.1"
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
+        with:
+          version: 10.30.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.22.3
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify source and behavior
+        run: pnpm verify
+
+      - name: Run deterministic proof suite
+        run: pnpm proof:quick-replies:all
+
+      - name: Validate release metadata
+        run: pnpm validate:release-metadata -- "$(node -p "require('./package.json').version")"
+
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
+        with:
+          version: 10.30.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.22.3
+          cache: pnpm
+
+      - name: Install and build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Pack once
+        id: pack
+        run: |
+          npm pack --json > /tmp/npm-pack.json
+          tarball="$(node -e "const p=require('/tmp/npm-pack.json'); process.stdout.write(p[0].filename)")"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          sha256sum "$tarball"
+
+      - name: Verify exact tarball contents and README assets
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          tar -tzf "$TARBALL" | sort | tee /tmp/package-files.txt
+          grep -Fx 'package/docs/assets/quick-replies-suggestions.png' /tmp/package-files.txt
+          grep -Fx 'package/docs/assets/quick-reply-selected.png' /tmp/package-files.txt
+          test "$(tar -xOf "$TARBALL" package/README.md | grep -c 'docs/assets/quick-repl')" -eq 2
+
+      - name: Install and inspect exact tarball in an isolated OpenClaw home
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          OPENCLAW_HOME="$(mktemp -d)"
+          export OPENCLAW_HOME
+          pnpm exec openclaw plugins install "npm-pack:$PWD/$TARBALL"
+          pnpm exec openclaw plugins enable openclaw-quick-replies
+          pnpm exec openclaw plugins inspect openclaw-quick-replies --runtime --json
+          rm -rf "$OPENCLAW_HOME"
+
+      - name: Run ClawHub inspector
+        run: |
+          pnpm dlx "clawhub@$CLAWHUB_CLI_VERSION" package validate . --out .reports/clawhub --json | tee /tmp/clawhub-validation.json
+          test "$(jq -r '.status' /tmp/clawhub-validation.json)" = pass
+          test "$(jq -r '.summary.issueCount' /tmp/clawhub-validation.json)" -eq 0
+
+      - name: Run ClawHub publish dry run
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          pnpm dlx "clawhub@$CLAWHUB_CLI_VERSION" package publish . \
+            --family code-plugin \
+            --name openclaw-quick-replies \
+            --version "$version" \
+            --source-repo "$GITHUB_REPOSITORY" \
+            --source-ref "$GITHUB_REF_NAME" \
+            --source-commit "$GITHUB_SHA" \
+            --dry-run --json
