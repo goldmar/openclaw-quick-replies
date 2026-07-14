@@ -52,6 +52,7 @@ export type QuickReplyEvaluationInput = {
   maxSuggestions: number;
   maxLabelChars: number;
   maxValueBytes: number;
+  abortSignal?: AbortSignal;
 };
 
 export type QuickReplyEvaluator = {

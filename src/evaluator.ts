@@ -12,28 +12,35 @@ import type {
 } from "./types";
 
 type EvaluatorHost = Pick<OpenClawPluginApi, "config" | "runtime">;
+type DiagnosticLogger = (event: string, fields: Record<string, unknown>) => void;
 
 export class ManagedAgentQuickReplyEvaluator implements QuickReplyEvaluator {
   constructor(
     private readonly api: EvaluatorHost,
     private readonly config: QuickReplyConfig,
+    private readonly log?: DiagnosticLogger,
   ) {}
 
   async evaluate(input: QuickReplyEvaluationInput): Promise<QuickReplyEvaluationResult> {
     const runEmbeddedAgent = this.api.runtime?.agent?.runEmbeddedAgent;
     if (typeof runEmbeddedAgent !== "function") return failure("evaluator_unavailable");
 
+    const startedAt = performance.now();
     try {
       assertConfiguredModelAllowed(this.config.model, this.api.config);
       const model = splitModelRef(this.config.model);
       const id = randomUUID();
+      const setupStartedAt = performance.now();
       const sessionDir = await mkdtemp(join(tmpdir(), "openclaw-quick-replies-"));
+      const setupMs = elapsedMs(setupStartedAt);
       try {
+        const runStartedAt = performance.now();
         const result = await runEmbeddedAgent({
           sessionId: `quick-replies-${id}`,
+          sessionKey: `temp:quick-replies:${id}`,
           sessionFile: join(sessionDir, "session.json"),
           workspaceDir: process.cwd(),
-          config: this.api.config,
+          config: configWithoutUserMcpServers(this.api.config),
           prompt: evaluationPrompt(input),
           timeoutMs: this.config.evaluationTimeoutMs,
           runTimeoutOverrideMs: this.config.evaluationTimeoutMs,
@@ -48,24 +55,52 @@ export class ManagedAgentQuickReplyEvaluator implements QuickReplyEvaluator {
           verboseLevel: "off",
           reasoningLevel: "off",
           silentExpected: true,
+          modelRun: true,
+          ...(input.abortSignal ? { abortSignal: input.abortSignal } : {}),
         });
+        const runMs = elapsedMs(runStartedAt);
+        const validationStartedAt = performance.now();
         const text = collectPayloadText(result);
-        if (!text) return failure("evaluator_invalid_json");
+        if (!text) {
+          this.logTiming("evaluator_completed", startedAt, { setupMs, runMs, validationMs: elapsedMs(validationStartedAt), outcome: "evaluator_invalid_json" });
+          return failure("evaluator_invalid_json");
+        }
         let parsed: unknown;
         try {
           parsed = JSON.parse(text);
         } catch {
+          this.logTiming("evaluator_completed", startedAt, { setupMs, runMs, validationMs: elapsedMs(validationStartedAt), outcome: "evaluator_invalid_json" });
           return failure("evaluator_invalid_json");
         }
         const decision = validateEvaluatorDecision(parsed, this.config);
+        this.logTiming("evaluator_completed", startedAt, {
+          setupMs,
+          runMs,
+          validationMs: elapsedMs(validationStartedAt),
+          outcome: decision ? (decision.eligible ? "eligible" : "ineligible") : "evaluator_invalid_decision",
+        });
         return decision ? { decision } : failure("evaluator_invalid_decision");
       } finally {
+        const cleanupStartedAt = performance.now();
         await rm(sessionDir, { recursive: true, force: true });
+        this.log?.("evaluator_cleanup", { cleanupMs: elapsedMs(cleanupStartedAt) });
       }
     } catch (error) {
-      return failure(isDeniedError(error) ? "evaluator_denied" : "evaluator_error");
+      const outcome = isDeniedError(error) ? "evaluator_denied" : "evaluator_error";
+      this.logTiming("evaluator_completed", startedAt, { outcome });
+      return failure(outcome);
     }
   }
+
+  private logTiming(event: string, startedAt: number, fields: Record<string, unknown>): void {
+    this.log?.(event, { ...fields, totalMs: elapsedMs(startedAt), model: this.config.model ?? "default" });
+  }
+}
+
+export function configWithoutUserMcpServers<T>(config: T): T {
+  if (!isRecord(config) || !isRecord(config.mcp) || !("servers" in config.mcp)) return config;
+  const { servers: _servers, ...mcp } = config.mcp;
+  return { ...config, mcp } as T;
 }
 
 function evaluationPrompt(input: QuickReplyEvaluationInput): string {
@@ -134,4 +169,8 @@ function isDeniedError(error: unknown): boolean {
   const haystack = [value?.code, value?.name, value?.message].filter((item): item is string => typeof item === "string").join(" ").toLowerCase();
   const status = typeof value?.status === "number" ? value.status : value?.statusCode;
   return status === 401 || status === 403 || /denied|forbidden|unauthorized|permission/u.test(haystack);
+}
+
+function elapsedMs(startedAt: number): number {
+  return Math.max(0, Math.round(performance.now() - startedAt));
 }
