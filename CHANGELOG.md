@@ -4,6 +4,8 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+- Fixed token-backed ClawHub publishing to use the CLI's documented temporary configuration file while keeping the repository secret out of artifacts and logs.
+
 ## 0.1.2
 
 - Added a daily, non-blocking update check that offers authorized Telegram controls for installing the exact approved version through OpenClaw's native plugin manager, preserving both npm and ClawHub install sources, and separately confirming a Gateway restart.
