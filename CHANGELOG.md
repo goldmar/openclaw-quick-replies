@@ -2,6 +2,10 @@
 
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
+## 0.1.1
+
+- Increased the default evaluator timeout from five seconds to 20 seconds so managed evaluators have enough time to add quick reply buttons before the original message is sent without them.
+
 ## 0.1.0
 
 - Added conservative, model-evaluated Telegram quick reply suggestions.

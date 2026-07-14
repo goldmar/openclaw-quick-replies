@@ -90,11 +90,11 @@ Quick Replies leaves the message unchanged when:
 - the evaluator omits a listed option or returns a low-confidence result; or
 - evaluation takes longer than the configured time limit.
 
-The original message is never held indefinitely. The default evaluation budget is five seconds; after that, the message continues without buttons.
+The original message is never held indefinitely. The default evaluation budget is 20 seconds; after that, the message continues without buttons.
 
 ## Optional configuration
 
-Settings live under `plugins.entries.openclaw-quick-replies.config`. For example:
+No configuration is required. To change the defaults, add settings under `plugins.entries.openclaw-quick-replies.config`. For example:
 
 ```json
 {
@@ -103,9 +103,8 @@ Settings live under `plugins.entries.openclaw-quick-replies.config`. For example
       "openclaw-quick-replies": {
         "enabled": true,
         "config": {
-          "maxSuggestions": 6,
-          "minConfidence": 0.7,
-          "evaluationTimeoutMs": 5000
+          "maxSuggestions": 8,
+          "minConfidence": 0.6
         }
       }
     }
@@ -122,7 +121,7 @@ Settings live under `plugins.entries.openclaw-quick-replies.config`. For example
 | `maxInputChars` | `1200` | Longest message the plugin will evaluate (1–12000). |
 | `maxLabelChars` | `24` | Longest visible button label (1–64). |
 | `maxValueBytes` | `42` | Maximum submitted answer size (1–42 UTF-8 bytes). |
-| `evaluationTimeoutMs` | `5000` | How long to wait before sending the original message without buttons (100–30000 ms). |
+| `evaluationTimeoutMs` | `20000` | How long to wait before sending the original message without buttons (100–30000 ms). |
 
 If you choose a specific `model`, OpenClaw requires you to allow that exact model for this plugin:
 
