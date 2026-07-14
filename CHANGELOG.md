@@ -6,6 +6,8 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 - Fixed token-backed ClawHub publishing to use the CLI's documented temporary configuration file while keeping the repository secret out of artifacts and logs.
 - Fixed self-updates to force-reinstall the approved exact version from the existing npm or ClawHub source, verify the resulting installed version, and log privacy-safe Telegram callback outcomes before offering a separately authorized Gateway restart.
+- Reduced Quick Replies evaluator overhead with raw model-run mode, timeout cancellation, semantic cross-message caching, an MCP-free per-run OpenClaw config projection, and bounded stage timing diagnostics.
+- Documented the OpenClaw 2026.7.1 Codex lifecycle defect that still inherits user-level Codex MCP servers for tool-disabled temporary threads and requires a core fix for complete resource cleanup.
 
 ## 0.1.2
 

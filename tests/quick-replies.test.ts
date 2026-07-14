@@ -50,11 +50,20 @@ describe("reply payload decoration", () => {
   });
 
   it("fails open after the configured evaluator timeout", async () => {
-    const evaluator: QuickReplyEvaluator = { evaluate: async () => new Promise(() => {}) };
+    let calls = 0;
+    let signal: AbortSignal | undefined;
+    const evaluator: QuickReplyEvaluator = { evaluate: async (input) => {
+      calls++;
+      signal = input.abortSignal;
+      return new Promise(() => {});
+    } };
     const hook = createQuickReplyPayloadHook(api({ evaluationTimeoutMs: 100 }), { evaluator });
     const started = Date.now();
     assert.equal(await hook(event("Continue?"), context), undefined);
     assert.ok(Date.now() - started < 500);
+    assert.equal(signal?.aborted, true);
+    assert.equal(await hook(event("Continue?"), { ...context, messageId: "message-2" }), undefined);
+    assert.equal(calls, 2);
   });
 
   it("deduplicates concurrent evaluations and caches results for identical input", async () => {
@@ -71,7 +80,7 @@ describe("reply payload decoration", () => {
     release(eligible());
     assert.deepEqual(await first, await second);
     await hook(event("Continue?"), { ...context, messageId: "another-message" });
-    assert.equal(calls, 2);
+    assert.equal(calls, 1);
   });
 
   it("isolates the cache by message text, model, and relevant configuration", async () => {
@@ -85,6 +94,39 @@ describe("reply payload decoration", () => {
     host.pluginConfig = { model: "openai/model-a", maxSuggestions: 4 };
     await hook(event("Continue?"), context);
     assert.equal(calls, 4);
+  });
+
+  it("does not cache transient evaluator failures across messages", async () => {
+    let calls = 0;
+    const hook = createQuickReplyPayloadHook(api(), {
+      evaluator: {
+        async evaluate() {
+          calls++;
+          if (calls === 1) throw new Error("transient evaluator failure");
+          return eligible();
+        },
+      },
+    });
+
+    assert.equal(await hook(event("Continue?"), context), undefined);
+    assert.ok(await hook(event("Continue?"), { ...context, messageId: "message-2" }));
+    assert.equal(calls, 2);
+  });
+
+  it("logs bounded timing and cache diagnostics without message content", async () => {
+    const diagnostics: Array<{ event: string } & Record<string, unknown>> = [];
+    const hook = createQuickReplyPayloadHook(api({ model: "openai/gpt-5.6-luna" }), {
+      evaluator: { async evaluate() { return eligible(); } },
+      log(eventName, fields) { diagnostics.push({ event: eventName, ...fields }); },
+    });
+    await hook(event("A private question?"), context);
+    await hook(event("A private question?"), { ...context, messageId: "message-2" });
+
+    const decorated = diagnostics.find((entry) => entry.event === "decorated");
+    assert.equal(typeof decorated?.evaluationMs, "number");
+    assert.equal(typeof decorated?.totalMs, "number");
+    assert.ok(diagnostics.some((entry) => entry.event === "evaluation_cache_hit"));
+    assert.equal(JSON.stringify(diagnostics).includes("A private question?"), false);
   });
 
   it("requires complete explicit option sets", async () => {

@@ -143,13 +143,13 @@ If you choose a specific `model`, OpenClaw requires you to allow that exact mode
 }
 ```
 
-Use `openclaw models list` to find a model available to your installation. A small, fast model is usually the best fit because this task is limited to deciding whether a message needs buttons and proposing short answers.
+Use `openclaw models list` to find a model available to your installation. A small, fast model is usually the best fit because this task is limited to deciding whether a message needs buttons and proposing short answers. On OpenClaw 2026.7.1, local representative testing found subscription-backed Luna and Codex Spark effectively tied and GPT-5.4 Mini slower; all returned valid complete choice sets. Keep Luna when it is available rather than assuming a smaller model will reduce end-to-end latency.
 
 ## Model usage, cost, and privacy
 
-Each eligible message can make one additional model request. The cost and latency depend on the model provider configured in OpenClaw. Identical requests happening at the same time share one evaluation, and results are cached briefly to avoid unnecessary repeat calls.
+Each eligible message can make one additional model request. The cost and latency depend on the model provider configured in OpenClaw. Identical requests happening at the same time share one evaluation, and validated eligible or ineligible decisions are cached briefly to avoid unnecessary repeat calls. Failures and timeouts are not cached.
 
-The evaluator receives the outgoing message text and the Telegram channel name. It runs in an isolated temporary session with tools and message delivery disabled. If an outgoing message must not be sent to your configured model provider, do not use Quick Replies for that conversation.
+The evaluator receives the outgoing message text and the Telegram channel name. It runs in an isolated temporary raw-model session with tools and message delivery disabled. OpenClaw user MCP servers are removed from the per-run config without changing shared configuration. OpenClaw 2026.7.1 can still inherit MCP servers from Codex's own user configuration; see [the architecture note](docs/ARCHITECTURE.md#openclaw-202671-codex-mcp-limitation). If an outgoing message must not be sent to your configured model provider, do not use Quick Replies for that conversation.
 
 Quick Replies does not send button values to its own remote service. It keeps recent source-message identifiers in process memory for five minutes to prevent a repeated tap from submitting the same answer twice.
 
@@ -172,7 +172,7 @@ See [SECURITY.md](SECURITY.md) for the full security boundary and reporting inst
 - **No buttons appear:** Confirm the destination is Telegram and the assistant is explicitly asking for an answer. Informational or open-ended messages intentionally stay as text.
 - **The plugin is not listed:** Run `openclaw plugins inspect openclaw-quick-replies --runtime --json`, then restart the Gateway if needed.
 - **A model override is rejected:** Add the exact `provider/model` value to this plugin's `llm.allowedModels` list.
-- **Messages feel slower:** Choose a faster evaluator model or lower `evaluationTimeoutMs`. A timeout still delivers the original message.
+- **Messages feel slower:** Inspect `evaluation_started`, `evaluation_cache_hit`, `evaluator_completed`, `evaluator_cleanup`, and `decorated`/`suppressed` diagnostics. Their bounded millisecond fields separate plugin work from the embedded model run; Telegram transport begins afterward. Lowering `evaluationTimeoutMs` limits delay and cancels the run, while a timeout still delivers the original message.
 - **One of the listed choices is missing:** Quick Replies suppresses the entire button set when the evaluator does not return every option.
 - **A button tap does nothing:** Stale, repeated, unauthorized, or altered callbacks are deliberately ignored.
 

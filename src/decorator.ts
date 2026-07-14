@@ -42,6 +42,7 @@ export function createQuickReplyPayloadHook(api: OpenClawPluginApi, deps: QuickR
     event: PluginHookReplyPayloadSendingEvent,
     ctx: PluginHookReplyPayloadSendingContext,
   ): Promise<PluginHookReplyPayloadSendingResult | void> => {
+    const hookStartedAt = performance.now();
     const channel = event.channel ?? ctx.channelId;
     const config = resolveQuickReplyConfig(api.pluginConfig);
     logDiagnostic(deps, "hook_seen", {
@@ -52,19 +53,19 @@ export function createQuickReplyPayloadHook(api: OpenClawPluginApi, deps: QuickR
     });
 
     if (channel !== "telegram") {
-      logDiagnostic(deps, "suppressed", { reason: "unsupported_channel", channel });
+      logDiagnostic(deps, "suppressed", { reason: "unsupported_channel", channel, totalMs: elapsedMs(hookStartedAt) });
       return;
     }
 
     const skipReason = structuralSkipReason(event.payload, config);
     if (skipReason) {
-      logDiagnostic(deps, "suppressed", { reason: skipReason });
+      logDiagnostic(deps, "suppressed", { reason: skipReason, totalMs: elapsedMs(hookStartedAt) });
       return;
     }
 
     const text = event.payload.text!.trim();
     if (!isExplicitReplyAsk(text)) {
-      logDiagnostic(deps, "suppressed", { reason: "not_explicit_ask" });
+      logDiagnostic(deps, "suppressed", { reason: "not_explicit_ask", totalMs: elapsedMs(hookStartedAt) });
       return;
     }
 
@@ -79,10 +80,14 @@ export function createQuickReplyPayloadHook(api: OpenClawPluginApi, deps: QuickR
       maxValueBytes: config.maxValueBytes,
     };
 
+    const evaluationStartedAt = performance.now();
     const result = await resolveDecision({ api, cache, config, deps, input, pending });
+    const evaluationMs = elapsedMs(evaluationStartedAt);
     if (!result.decision?.eligible) {
       logDiagnostic(deps, "suppressed", {
         reason: result.failureReason ?? result.decision?.reason ?? "no_decision",
+        evaluationMs,
+        totalMs: elapsedMs(hookStartedAt),
       });
       return;
     }
@@ -92,13 +97,19 @@ export function createQuickReplyPayloadHook(api: OpenClawPluginApi, deps: QuickR
         reason: "evaluator_invalid_decision",
         expectedSuggestions: explicitAnswerOptionCount(text),
         suggestions: result.decision.suggestions.length,
+        evaluationMs,
+        totalMs: elapsedMs(hookStartedAt),
       });
       return;
     }
 
     const decorated = decoratePayload(event.payload, result.decision);
     if (!decorated) return;
-    logDiagnostic(deps, "decorated", { suggestions: result.decision.suggestions.length });
+    logDiagnostic(deps, "decorated", {
+      suggestions: result.decision.suggestions.length,
+      evaluationMs,
+      totalMs: elapsedMs(hookStartedAt),
+    });
     return { payload: decorated };
   };
 }
@@ -142,17 +153,26 @@ async function resolveDecision(params: {
   const now = deps.now?.() ?? Date.now();
   pruneCache(cache, now);
   const cached = cache.get(key);
-  if (cached && cached.expiresAt > now) return cached.result;
+  if (cached && cached.expiresAt > now) {
+    logDiagnostic(deps, "evaluation_cache_hit", {});
+    return cached.result;
+  }
 
   const existing = pending.get(key);
-  if (existing) return existing;
+  if (existing) {
+    logDiagnostic(deps, "evaluation_pending_hit", {});
+    return existing;
+  }
 
-  const evaluator = deps.evaluator ?? new ManagedAgentQuickReplyEvaluator(api, config);
+  logDiagnostic(deps, "evaluation_started", { model: config.model ?? "default" });
+  const evaluator = deps.evaluator ?? new ManagedAgentQuickReplyEvaluator(api, config, deps.log);
   const evaluation = evaluateWithTimeout(evaluator, input, config.evaluationTimeoutMs)
     .then((result) => {
-      const completedAt = deps.now?.() ?? Date.now();
-      cache.set(key, { result, expiresAt: completedAt + DECISION_CACHE_TTL_MS });
-      trimOldestEntries(cache, MAX_CACHE_ENTRIES);
+      if (result.decision) {
+        const completedAt = deps.now?.() ?? Date.now();
+        cache.set(key, { result, expiresAt: completedAt + DECISION_CACHE_TTL_MS });
+        trimOldestEntries(cache, MAX_CACHE_ENTRIES);
+      }
       return result;
     })
     .finally(() => pending.delete(key));
@@ -165,11 +185,16 @@ async function evaluateWithTimeout(
   input: QuickReplyEvaluationInput,
   timeoutMs: number,
 ): Promise<QuickReplyEvaluationResult> {
+  const abortController = new AbortController();
+  const evaluationInput = { ...input, abortSignal: abortController.signal };
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<QuickReplyEvaluationResult>((resolve) => {
-    timer = setTimeout(() => resolve({ decision: null, failureReason: "evaluator_timeout" }), timeoutMs);
+    timer = setTimeout(() => {
+      abortController.abort(new Error("quick reply evaluation timed out"));
+      resolve({ decision: null, failureReason: "evaluator_timeout" });
+    }, timeoutMs);
   });
-  const evaluation = evaluator.evaluate(input).catch(() => ({
+  const evaluation = evaluator.evaluate(evaluationInput).catch(() => ({
     decision: null,
     failureReason: "evaluator_error" as const,
   }));
@@ -265,7 +290,6 @@ function explicitAnswerOptionCount(text: string): number | null {
 function decisionCacheKey(input: QuickReplyEvaluationInput, config: QuickReplyConfig): string {
   const material = JSON.stringify({
     text: input.text,
-    messageId: input.messageId ?? "",
     channel: input.channel,
     model: config.model ?? "",
     maxSuggestions: config.maxSuggestions,
@@ -276,6 +300,10 @@ function decisionCacheKey(input: QuickReplyEvaluationInput, config: QuickReplyCo
     evaluationTimeoutMs: config.evaluationTimeoutMs,
   });
   return createHash("sha256").update(material).digest("base64url");
+}
+
+function elapsedMs(startedAt: number): number {
+  return Math.max(0, Math.round(performance.now() - startedAt));
 }
 
 function normalizePresentationText(value: string): string {
