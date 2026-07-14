@@ -8,7 +8,7 @@ export const DEFAULT_CONFIG: QuickReplyConfig = {
   maxInputChars: 1200,
   maxLabelChars: 24,
   maxValueBytes: 42,
-  evaluationTimeoutMs: 5000,
+  evaluationTimeoutMs: 20_000,
 };
 
 export function resolveQuickReplyConfig(raw: unknown): QuickReplyConfig {

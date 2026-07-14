@@ -25,6 +25,7 @@ describe("public configuration", () => {
     assert.equal(properties.maxLabelChars.type, "integer");
     assert.equal(properties.maxValueBytes.type, "integer");
     assert.equal(properties.evaluationTimeoutMs.type, "integer");
+    assert.equal(DEFAULT_CONFIG.evaluationTimeoutMs, 20_000);
   });
 
   it("clamps integers and normalizes the model override", () => {

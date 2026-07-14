@@ -1,6 +1,6 @@
 {
   "name": "openclaw-quick-replies",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Telegram quick reply suggestions for OpenClaw conversations.",
   "type": "module",
   "engines": {
@@ -27,7 +27,7 @@
     "proof:quick-replies:local-smoke": "node --import tsx scripts/e2e/quick-replies-openclaw-proof.ts local-smoke",
     "proof:quick-replies:dry-run": "node --import tsx scripts/e2e/quick-replies-openclaw-proof.ts run --dry-run",
     "proof:quick-replies:all": "pnpm proof:quick-replies:doctor && pnpm proof:quick-replies:local-smoke && pnpm proof:quick-replies:dry-run",
-    "release:check": "pnpm verify && pnpm proof:quick-replies:all && pnpm validate:release-metadata -- 0.1.0 && pnpm audit:prod && pnpm pack:dry-run",
+    "release:check": "pnpm verify && pnpm proof:quick-replies:all && pnpm validate:release-metadata -- 0.1.1 && pnpm audit:prod && pnpm pack:dry-run",
     "test": "node scripts/run-tests.mjs",
     "test:file": "node scripts/run-tests.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
