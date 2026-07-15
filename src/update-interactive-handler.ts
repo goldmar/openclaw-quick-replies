@@ -74,16 +74,18 @@ function parseContext(raw: unknown): {
   authorized: boolean;
   data: unknown;
   editMessage: (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>;
-  reply: (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>;
+  reply?: (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>;
   messageText: string;
 } | null {
   if (!isRecord(raw) || !isRecord(raw.callback) || !isRecord(raw.auth) || !isRecord(raw.respond)) return null;
-  if (typeof raw.respond.editMessage !== "function" || typeof raw.respond.reply !== "function") return null;
+  if (typeof raw.respond.editMessage !== "function") return null;
   return {
     authorized: raw.auth.isAuthorizedSender === true,
     data: raw.callback.data,
     editMessage: raw.respond.editMessage as (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>,
-    reply: raw.respond.reply as (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>,
+    reply: typeof raw.respond.reply === "function"
+      ? raw.respond.reply as (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>
+      : undefined,
     messageText: typeof raw.callback.messageText === "string" ? raw.callback.messageText.trim() : "OpenClaw Quick Replies update",
   };
 }
@@ -91,7 +93,7 @@ function parseContext(raw: unknown): {
 async function editOrReply(
   ctx: {
     editMessage: (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>;
-    reply: (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>;
+    reply?: (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>;
   },
   text: string,
   checker: QuickRepliesUpdateChecker,
@@ -109,6 +111,7 @@ async function editOrReply(
     });
   }
 
+  if (!ctx.reply) return;
   try {
     await ctx.reply({ text, buttons });
   } catch (error) {

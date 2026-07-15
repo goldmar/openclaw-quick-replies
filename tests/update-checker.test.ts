@@ -135,7 +135,7 @@ describe("OpenClaw Quick Replies update checker", () => {
     assert.equal(hook(interactive, context), undefined);
   });
 
-  it("installs the exact approved version even after the registry tag moves", async () => {
+  it("installs and restarts in edit-only contexts even after the registry tag moves", async () => {
     const commands: string[][] = [];
     const edits: Array<{ text: string; buttons: Array<Array<{ text: string; callback_data: string }>> }> = [];
     const checker = new QuickRepliesUpdateChecker({
@@ -155,7 +155,6 @@ describe("OpenClaw Quick Replies update checker", () => {
       callback: { data: "oqru:v1:install:0.1.2", messageText: "Update available" },
       respond: {
         editMessage: async (params: typeof edits[number]) => { edits.push(params); },
-        reply: async () => {},
       },
     };
     assert.deepEqual(await registration.handler(rawContext), { handled: true });
