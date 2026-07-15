@@ -135,7 +135,7 @@ describe("OpenClaw Quick Replies update checker", () => {
     assert.equal(hook(interactive, context), undefined);
   });
 
-  it("installs the exact approved version even after the registry tag moves", async () => {
+  it("installs and restarts in edit-only contexts even after the registry tag moves", async () => {
     const commands: string[][] = [];
     const edits: Array<{ text: string; buttons: Array<Array<{ text: string; callback_data: string }>> }> = [];
     const checker = new QuickRepliesUpdateChecker({
@@ -153,7 +153,9 @@ describe("OpenClaw Quick Replies update checker", () => {
     const rawContext = {
       auth: { isAuthorizedSender: true },
       callback: { data: "oqru:v1:install:0.1.2", messageText: "Update available" },
-      respond: { editMessage: async (params: typeof edits[number]) => { edits.push(params); } },
+      respond: {
+        editMessage: async (params: typeof edits[number]) => { edits.push(params); },
+      },
     };
     assert.deepEqual(await registration.handler(rawContext), { handled: true });
     assert.deepEqual(commands, [
@@ -185,7 +187,7 @@ describe("OpenClaw Quick Replies update checker", () => {
     const registration = createUpdateInteractiveHandler(checker);
     const base = {
       callback: { data: "oqru:v1:install:0.1.2", messageText: "Update available" },
-      respond: { editMessage: async () => {} },
+      respond: { editMessage: async () => {}, reply: async () => {} },
     };
 
     await registration.handler({ ...base, auth: { isAuthorizedSender: false } });
@@ -242,8 +244,9 @@ describe("OpenClaw Quick Replies update checker", () => {
     assert.equal(commands.length, 3);
   });
 
-  it("does not let Telegram edit failures misreport installs or block confirmed restarts", async () => {
+  it("falls back to a normal message when the post-install success edit fails", async () => {
     const commands: string[][] = [];
+    const replies: Array<{ text: string; buttons: Array<Array<{ text: string; callback_data: string }>> }> = [];
     const checker = new QuickRepliesUpdateChecker({
       currentVersion: "0.1.1",
       enabled: () => true,
@@ -258,7 +261,10 @@ describe("OpenClaw Quick Replies update checker", () => {
     const rawContext = {
       auth: { isAuthorizedSender: true },
       callback: { data: "oqru:v1:install:0.1.2", messageText: "Update available" },
-      respond: { editMessage: async () => { throw new Error("message is no longer editable"); } },
+      respond: {
+        editMessage: async () => { throw new Error("message is no longer editable"); },
+        reply: async (params: typeof replies[number]) => { replies.push(params); },
+      },
     };
     assert.deepEqual(await registration.handler(rawContext), { handled: true });
     assert.deepEqual(commands, [
@@ -266,10 +272,48 @@ describe("OpenClaw Quick Replies update checker", () => {
       ["openclaw", "plugins", "install", "openclaw-quick-replies@0.1.2", "--force"],
       ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
     ]);
+    assert.match(replies[0]?.text ?? "", /v0\.1\.2 was installed and verified/);
+    assert.equal(replies[0]?.buttons[0]?.[0]?.callback_data, "oqru:v1:restart:0.1.2");
 
     rawContext.callback.data = "oqru:v1:restart:0.1.2";
     assert.deepEqual(await registration.handler(rawContext), { handled: true });
     assert.deepEqual(commands.at(-1), ["openclaw", "gateway", "restart"]);
+  });
+
+  it("falls back to a normal message when the post-install error edit fails", async () => {
+    const commands: string[][] = [];
+    const replies: Array<{ text: string; buttons: Array<Array<{ text: string; callback_data: string }>> }> = [];
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: async (command, args) => {
+        commands.push([command, ...args]);
+        if (args[1] === "install") throw new Error("install failed");
+        return { stdout: inspection(), stderr: "" };
+      },
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+
+    const result = await createUpdateInteractiveHandler(checker).handler({
+      auth: { isAuthorizedSender: true },
+      callback: { data: "oqru:v1:install:0.1.2", messageText: "Update available" },
+      respond: {
+        editMessage: async () => { throw new Error("message is no longer editable"); },
+        reply: async (params: typeof replies[number]) => { replies.push(params); },
+      },
+    });
+
+    assert.deepEqual(result, { handled: true });
+    assert.match(replies[0]?.text ?? "", /update failed or could not be verified/);
+    assert.deepEqual(replies[0]?.buttons, []);
+    assert.equal(checker.canRestart("0.1.2"), false);
+    assert.deepEqual(commands, [
+      ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
+      ["openclaw", "plugins", "install", "openclaw-quick-replies@0.1.2", "--force"],
+    ]);
   });
 
   it("uses the documented exact ClawHub reinstall path for ClawHub-managed installs", async () => {
@@ -380,7 +424,7 @@ describe("OpenClaw Quick Replies update checker", () => {
     const result = await createUpdateInteractiveHandler(checker).handler({
       auth: { isAuthorizedSender: true },
       callback: { data: "oqru:v1:install:0.1.2", messageText: "Update available" },
-      respond: { editMessage: async () => {} },
+      respond: { editMessage: async () => {}, reply: async () => {} },
     });
     assert.deepEqual(result, { handled: true });
     assert.equal(checker.canRestart("0.1.2"), true);
@@ -397,7 +441,7 @@ describe("OpenClaw Quick Replies update checker", () => {
     await registration.handler({
       auth: { isAuthorizedSender: false },
       callback: { data: "oqru:v1:install:0.1.2", messageText: "private text" },
-      respond: { editMessage: async () => {} },
+      respond: { editMessage: async () => {}, reply: async () => {} },
     });
     assert.deepEqual(events.at(-1), {
       event: "update_callback_rejected",
