@@ -16,7 +16,7 @@ import {
 
 const repoRoot = join(import.meta.dirname, "..");
 
-describe("Quick Replies OpenClaw proof runner", () => {
+describe("OpenClaw Quick Replies proof runner", () => {
   it("parses proof controls and rejects invalid arguments", () => {
     const opts = parseArgs([
       "local-smoke",

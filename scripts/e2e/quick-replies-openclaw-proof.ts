@@ -172,7 +172,7 @@ export function buildCoverageMatrix(): { overall: string; rows: QuickRepliesCove
       {
         category: "messages that already have buttons",
         coverage: "suppressed",
-        notes: "Existing presentation, interactive, channel-native buttons/components, and top-level actions/buttons suppress Quick Replies.",
+        notes: "Existing presentation, interactive, channel-native buttons/components, and top-level actions/buttons suppress OpenClaw Quick Replies.",
       },
     ],
   };
@@ -258,7 +258,7 @@ export async function runProof(opts: QuickRepliesProofOptions): Promise<Record<s
     writeSummary(opts.outputDir, summary);
     return summary;
   }
-  throw new Error("Quick Replies proof run is plan-only. Use --dry-run or local-smoke.");
+  throw new Error("OpenClaw Quick Replies proof run is plan-only. Use --dry-run or local-smoke.");
 }
 
 export function cleanupProofArtifacts(outputDir: string): void {

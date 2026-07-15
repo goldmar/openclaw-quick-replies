@@ -52,7 +52,7 @@ function managedRunner(
 
 const context = { channelId: "telegram", messageId: "message-1" } as PluginHookReplyPayloadSendingContext;
 
-describe("Quick Replies update checker", () => {
+describe("OpenClaw Quick Replies update checker", () => {
   it("accepts only canonical stable-version callback payloads", () => {
     assert.deepEqual(parseUpdateCallbackData(buildUpdateCallbackData("install", "0.1.2")), {
       action: "install",
@@ -124,7 +124,7 @@ describe("Quick Replies update checker", () => {
     assert.equal(hook(channelInteractive, context), undefined);
 
     const result = hook(event("Deployment completed."), context);
-    assert.match(result?.payload?.text ?? "", /Quick Replies v0\.1\.2 is available/);
+    assert.match(result?.payload?.text ?? "", /OpenClaw Quick Replies v0\.1\.2 is available/);
     const buttonBlock = result?.payload?.presentation?.blocks.find((block) => block.type === "buttons");
     assert.equal(buttonBlock?.type, "buttons");
     const action = buttonBlock?.type === "buttons" ? buttonBlock.buttons[0]?.action : undefined;
@@ -161,11 +161,12 @@ describe("Quick Replies update checker", () => {
       ["openclaw", "plugins", "install", "openclaw-quick-replies@0.1.2", "--force"],
       ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
     ]);
-    assert.match(edits[0]?.text ?? "", /v0\.1\.2 was installed/);
+    assert.match(edits[0]?.text ?? "", /OpenClaw Quick Replies v0\.1\.2 was installed/);
     assert.equal(edits[0]?.buttons[0]?.[0]?.callback_data, "oqru:v1:restart:0.1.2");
 
     rawContext.callback.data = "oqru:v1:restart:0.1.2";
     assert.deepEqual(await registration.handler(rawContext), { handled: true });
+    assert.match(edits[1]?.text ?? "", /load OpenClaw Quick Replies v0\.1\.2/);
     assert.deepEqual(commands.at(-1), ["openclaw", "gateway", "restart"]);
     assert.deepEqual(await registration.handler(rawContext), { handled: true });
     assert.equal(commands.length, 4);

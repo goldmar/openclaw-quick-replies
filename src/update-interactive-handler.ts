@@ -45,11 +45,11 @@ async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChe
     try {
       await checker.install(callback.version);
     } catch (error) {
-      await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nThe Quick Replies update failed or could not be verified. Check the Gateway logs and try again.`, checker, callback);
+      await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nThe OpenClaw Quick Replies update failed or could not be verified. Check the Gateway logs and try again.`, checker, callback);
       return { handled: true };
     }
     const restartData = buildUpdateCallbackData("restart", callback.version)!;
-    await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nQuick Replies v${callback.version} was installed and verified. Restart the Gateway to load it.`, checker, callback, [[
+    await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nOpenClaw Quick Replies v${callback.version} was installed and verified. Restart the Gateway to load it.`, checker, callback, [[
       { text: "Restart Gateway", callback_data: restartData },
     ]]);
     return { handled: true };
@@ -60,7 +60,7 @@ async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChe
     return { handled: true };
   }
   checker.logCallback("gateway_restart_approved", { version: callback.version });
-  await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nRestarting the Gateway to load Quick Replies v${callback.version}…`, checker, callback);
+  await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nRestarting the Gateway to load OpenClaw Quick Replies v${callback.version}…`, checker, callback);
   try {
     await checker.restart(callback.version);
   } catch (error) {
@@ -82,7 +82,7 @@ function parseContext(raw: unknown): {
     authorized: raw.auth.isAuthorizedSender === true,
     data: raw.callback.data,
     editMessage: raw.respond.editMessage as (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>,
-    messageText: typeof raw.callback.messageText === "string" ? raw.callback.messageText.trim() : "Quick Replies update",
+    messageText: typeof raw.callback.messageText === "string" ? raw.callback.messageText.trim() : "OpenClaw Quick Replies update",
   };
 }
 

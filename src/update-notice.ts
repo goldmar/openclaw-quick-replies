@@ -20,7 +20,7 @@ export function createUpdateNoticeHook(checker: QuickRepliesUpdateChecker) {
     const callbackData = version ? buildUpdateCallbackData("install", version) : null;
     if (!version || !callbackData) return;
 
-    const notice = `Quick Replies v${version} is available.`;
+    const notice = `OpenClaw Quick Replies v${version} is available.`;
     return {
       payload: {
         ...event.payload,

@@ -201,13 +201,13 @@ export class QuickRepliesUpdateChecker {
         await this.runCommand("openclaw", args);
         const after = await this.inspectManagedInstall();
         if (after.source !== before.source) {
-          throw new Error(`Quick Replies install source changed from ${before.source} to ${after.source}.`);
+          throw new Error(`OpenClaw Quick Replies install source changed from ${before.source} to ${after.source}.`);
         }
         if (after.pluginVersion !== normalized) {
-          throw new Error(`Quick Replies v${normalized} was requested, but manifest v${after.pluginVersion ?? "unknown"} is installed.`);
+          throw new Error(`OpenClaw Quick Replies v${normalized} was requested, but manifest v${after.pluginVersion ?? "unknown"} is installed.`);
         }
         if (after.installVersion && after.installVersion !== normalized) {
-          throw new Error(`Quick Replies v${normalized} was requested, but install record v${after.installVersion} is installed.`);
+          throw new Error(`OpenClaw Quick Replies v${normalized} was requested, but install record v${after.installVersion} is installed.`);
         }
         this.safeLog("update_install_verified", { source: after.source, version: after.pluginVersion });
       })
@@ -278,7 +278,7 @@ export class QuickRepliesUpdateChecker {
   private async inspectManagedInstall(): Promise<ManagedInstall> {
     const inspection = await this.runCommand("openclaw", ["plugins", "inspect", PACKAGE_NAME, "--json"]);
     const managed = parseManagedInstall(inspection.stdout);
-    if (!managed) throw new Error("The installed Quick Replies source cannot be verified.");
+    if (!managed) throw new Error("The installed OpenClaw Quick Replies source cannot be verified.");
     return managed;
   }
 

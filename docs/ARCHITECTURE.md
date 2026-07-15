@@ -1,6 +1,6 @@
 # Architecture
 
-Quick Replies is a Telegram-only OpenClaw hook plugin with a small update-check service.
+OpenClaw Quick Replies is a Telegram-only OpenClaw hook plugin with a small update-check service.
 
 The `reply_payload_sending` hook rejects unsupported channels, non-plain payloads, existing controls, long input, and messages without an explicit ask. Eligible text is evaluated through `api.runtime.agent.runEmbeddedAgent` as a raw `modelRun` with tools and delivery disabled. The configured `thinkLevel` is normalized and checked against OpenClaw's selected-model thinking policy before being passed directly to that embedded run; unsupported levels fail open rather than being silently clamped. Reasoning visibility remains off. The run receives an immutable config projection without OpenClaw user MCP servers; the shared OpenClaw config is never changed. The validated decision becomes portable `presentation.blocks` callback buttons.
 
