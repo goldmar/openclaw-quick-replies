@@ -98,6 +98,19 @@ describe("reply payload decoration", () => {
     assert.equal(calls, 5);
   });
 
+  it("isolates implicit-model cache entries when the host default model changes", async () => {
+    let calls = 0;
+    const host = api();
+    host.config = { agents: { defaults: { model: { primary: "openai/supports-high" } } } } as OpenClawPluginApi["config"];
+    const hook = createQuickReplyPayloadHook(host, { evaluator: { async evaluate() { calls++; return eligible(); } } });
+
+    await hook(event("Continue?"), context);
+    host.config = { agents: { defaults: { model: { primary: "openai/no-high" } } } } as OpenClawPluginApi["config"];
+    await hook(event("Continue?"), { ...context, messageId: "message-2" });
+
+    assert.equal(calls, 2);
+  });
+
   it("does not cache transient evaluator failures across messages", async () => {
     let calls = 0;
     const hook = createQuickReplyPayloadHook(api(), {

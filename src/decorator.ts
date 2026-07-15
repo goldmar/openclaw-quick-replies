@@ -149,7 +149,7 @@ async function resolveDecision(params: {
   pending: Map<string, Promise<QuickReplyEvaluationResult>>;
 }): Promise<QuickReplyEvaluationResult> {
   const { api, cache, config, deps, input, pending } = params;
-  const key = decisionCacheKey(input, config);
+  const key = decisionCacheKey(api, input, config);
   const now = deps.now?.() ?? Date.now();
   pruneCache(cache, now);
   const cached = cache.get(key);
@@ -287,11 +287,11 @@ function explicitAnswerOptionCount(text: string): number | null {
   return bullets >= 2 ? bullets : null;
 }
 
-function decisionCacheKey(input: QuickReplyEvaluationInput, config: QuickReplyConfig): string {
+function decisionCacheKey(api: OpenClawPluginApi, input: QuickReplyEvaluationInput, config: QuickReplyConfig): string {
   const material = JSON.stringify({
     text: input.text,
     channel: input.channel,
-    model: config.model ?? "",
+    model: evaluatorModelCacheIdentity(api, config.model),
     thinkLevel: config.thinkLevel,
     maxSuggestions: config.maxSuggestions,
     minConfidence: config.minConfidence,
@@ -301,6 +301,21 @@ function decisionCacheKey(input: QuickReplyEvaluationInput, config: QuickReplyCo
     evaluationTimeoutMs: config.evaluationTimeoutMs,
   });
   return createHash("sha256").update(material).digest("base64url");
+}
+
+function evaluatorModelCacheIdentity(api: OpenClawPluginApi, configuredModel: string | undefined): string {
+  if (configuredModel) return configuredModel;
+  const config = api.config;
+  if (isRecord(config) && isRecord(config.agents) && isRecord(config.agents.defaults)) {
+    const model = config.agents.defaults.model;
+    if (typeof model === "string" && model.trim()) return model.trim();
+    if (isRecord(model) && typeof model.primary === "string" && model.primary.trim()) return model.primary.trim();
+  }
+  const provider = api.runtime?.agent?.defaults?.provider;
+  const model = api.runtime?.agent?.defaults?.model;
+  return typeof provider === "string" && provider && typeof model === "string" && model
+    ? `${provider}/${model}`
+    : "";
 }
 
 function elapsedMs(startedAt: number): number {
