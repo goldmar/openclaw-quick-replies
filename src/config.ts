@@ -1,10 +1,15 @@
 import { buildSuggestionCallbackData } from "./callbacks";
-import type { QuickReplyConfig, QuickReplyDecision, QuickReplySuggestion } from "./types";
+import type { QuickReplyConfig, QuickReplyDecision, QuickReplySuggestion, QuickReplyThinkLevel } from "./types";
+
+export const QUICK_REPLY_THINK_LEVELS = [
+  "off", "minimal", "low", "medium", "high", "xhigh", "adaptive", "max", "ultra",
+] as const satisfies readonly QuickReplyThinkLevel[];
 
 export const DEFAULT_CONFIG: QuickReplyConfig = {
   enabled: true,
   maxSuggestions: 6,
   minConfidence: 0.7,
+  thinkLevel: "minimal",
   maxInputChars: 1200,
   maxLabelChars: 24,
   maxValueBytes: 42,
@@ -19,12 +24,19 @@ export function resolveQuickReplyConfig(raw: unknown): QuickReplyConfig {
     maxSuggestions: readInteger(value.maxSuggestions, DEFAULT_CONFIG.maxSuggestions, 1, 10),
     minConfidence: readNumber(value.minConfidence, DEFAULT_CONFIG.minConfidence, 0, 1),
     model: readOptionalString(value.model),
+    thinkLevel: readThinkLevel(value.thinkLevel, DEFAULT_CONFIG.thinkLevel),
     maxInputChars: readInteger(value.maxInputChars, DEFAULT_CONFIG.maxInputChars, 1, 12_000),
     maxLabelChars: readInteger(value.maxLabelChars, DEFAULT_CONFIG.maxLabelChars, 1, 64),
     maxValueBytes: readInteger(value.maxValueBytes, DEFAULT_CONFIG.maxValueBytes, 1, 42),
     evaluationTimeoutMs: readInteger(value.evaluationTimeoutMs, DEFAULT_CONFIG.evaluationTimeoutMs, 100, 30_000),
     updateChecks: readBoolean(value.updateChecks, DEFAULT_CONFIG.updateChecks),
   };
+}
+
+function readThinkLevel(raw: unknown, fallback: QuickReplyThinkLevel): QuickReplyThinkLevel {
+  return typeof raw === "string" && (QUICK_REPLY_THINK_LEVELS as readonly string[]).includes(raw)
+    ? raw as QuickReplyThinkLevel
+    : fallback;
 }
 
 export function validateEvaluatorDecision(raw: unknown, config: QuickReplyConfig): QuickReplyDecision | null {

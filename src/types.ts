@@ -3,12 +3,24 @@ export type QuickReplyConfig = {
   maxSuggestions: number;
   minConfidence: number;
   model?: string;
+  thinkLevel: QuickReplyThinkLevel;
   maxInputChars: number;
   maxLabelChars: number;
   maxValueBytes: number;
   evaluationTimeoutMs: number;
   updateChecks: boolean;
 };
+
+export type QuickReplyThinkLevel =
+  | "off"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "adaptive"
+  | "max"
+  | "ultra";
 
 export type QuickReplySuggestion = {
   label: string;
@@ -36,6 +48,7 @@ export type QuickReplyDiagnosticReason =
   | "evaluator_timeout"
   | "evaluator_invalid_json"
   | "evaluator_invalid_decision"
+  | "evaluator_unsupported_think_level"
   | "no_decision";
 
 export type QuickReplyEvaluationResult = {

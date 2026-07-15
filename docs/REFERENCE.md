@@ -15,15 +15,15 @@
 
 ## Public config
 
-The public keys are `enabled`, `maxSuggestions`, `minConfidence`, `model`, `maxInputChars`, `maxLabelChars`, `maxValueBytes`, `evaluationTimeoutMs`, and `updateChecks`. Their defaults and ranges are defined in `openclaw.plugin.json` and summarized in the README.
+The public keys are `enabled`, `maxSuggestions`, `minConfidence`, `model`, `thinkLevel`, `maxInputChars`, `maxLabelChars`, `maxValueBytes`, `evaluationTimeoutMs`, and `updateChecks`. Their defaults and ranges are defined in `openclaw.plugin.json` and summarized in the README. `thinkLevel` accepts OpenClaw's embedded-run values `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `adaptive`, `max`, and `ultra`, and defaults to `minimal`.
 
 ## Suppression rules
 
-The plugin suppresses non-Telegram delivery, empty or oversized text, media, voice/TTS supplements, errors, reasoning/commentary, status/fallback/compaction notices, existing portable controls, channel-native controls, non-explicit asks, evaluator failures, low confidence, invalid suggestions, incomplete explicit option sets, and values that cannot fit the callback contract.
+The plugin suppresses non-Telegram delivery, empty or oversized text, media, voice/TTS supplements, errors, reasoning/commentary, status/fallback/compaction notices, existing portable controls, channel-native controls, non-explicit asks, evaluator failures, thinking levels unsupported by the selected model/runtime, low confidence, invalid suggestions, incomplete explicit option sets, and values that cannot fit the callback contract.
 
 ## Evaluation diagnostics
 
-`evaluation_started`, `evaluation_cache_hit`, and `evaluation_pending_hit` describe evaluator dispatch. `evaluator_completed` reports bounded setup, embedded-run, validation, and total milliseconds plus the model and outcome; `evaluator_cleanup` reports temporary-directory cleanup. Final `decorated` and `suppressed` records include evaluation and total synchronous hook milliseconds where applicable. Diagnostics never include the evaluated text or raw model response, and they do not include downstream Telegram delivery time.
+`evaluation_started`, `evaluation_cache_hit`, and `evaluation_pending_hit` describe evaluator dispatch. The start record includes the model and thinking level. `evaluator_completed` reports bounded setup, embedded-run, validation, and total milliseconds plus the model and outcome; `evaluator_cleanup` reports temporary-directory cleanup. Final `decorated` and `suppressed` records include evaluation and total synchronous hook milliseconds where applicable. Diagnostics never include the evaluated text or raw model response, and they do not include downstream Telegram delivery time.
 
 ## Callback rules
 

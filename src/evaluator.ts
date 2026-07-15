@@ -29,6 +29,11 @@ export class ManagedAgentQuickReplyEvaluator implements QuickReplyEvaluator {
     try {
       assertConfiguredModelAllowed(this.config.model, this.api.config);
       const model = splitModelRef(this.config.model);
+      const policyModel = model ?? resolveDefaultModelRef(this.api);
+      if (!supportsConfiguredThinkLevel(this.api, policyModel, this.config.thinkLevel)) {
+        this.logTiming("evaluator_completed", startedAt, { outcome: "evaluator_unsupported_think_level" });
+        return failure("evaluator_unsupported_think_level");
+      }
       const id = randomUUID();
       const setupStartedAt = performance.now();
       const sessionDir = await mkdtemp(join(tmpdir(), "openclaw-quick-replies-"));
@@ -48,6 +53,7 @@ export class ManagedAgentQuickReplyEvaluator implements QuickReplyEvaluator {
           trigger: "manual",
           ...(model ? { provider: model.provider, model: model.model } : {}),
           ...(model?.harness ? { agentHarnessRuntimeOverride: model.harness } : {}),
+          thinkLevel: this.config.thinkLevel,
           disableTools: true,
           disableMessageTool: true,
           toolsAllow: [],
@@ -95,6 +101,42 @@ export class ManagedAgentQuickReplyEvaluator implements QuickReplyEvaluator {
   private logTiming(event: string, startedAt: number, fields: Record<string, unknown>): void {
     this.log?.(event, { ...fields, totalMs: elapsedMs(startedAt), model: this.config.model ?? "default" });
   }
+}
+
+function supportsConfiguredThinkLevel(
+  api: EvaluatorHost,
+  model: { provider: string; model: string; harness?: string },
+  thinkLevel: QuickReplyConfig["thinkLevel"],
+): boolean {
+  const normalizeThinkingLevel = api.runtime?.agent?.normalizeThinkingLevel;
+  const resolveThinkingPolicy = api.runtime?.agent?.resolveThinkingPolicy;
+  if (typeof normalizeThinkingLevel !== "function" || typeof resolveThinkingPolicy !== "function") return false;
+  const normalized = normalizeThinkingLevel(thinkLevel);
+  if (normalized !== thinkLevel) return false;
+  const policy = resolveThinkingPolicy({
+    provider: model.provider,
+    model: model.model,
+    ...(model.harness ? { agentRuntime: model.harness } : {}),
+  });
+  return policy.levels.some((level) => level.id === normalized);
+}
+
+function resolveDefaultModelRef(api: EvaluatorHost): { provider: string; model: string; harness?: string } {
+  const configured = readDefaultModelRef(api.config);
+  if (configured) return splitModelRef(configured)!;
+  const provider = api.runtime?.agent?.defaults?.provider;
+  const model = api.runtime?.agent?.defaults?.model;
+  if (typeof provider !== "string" || !provider || typeof model !== "string" || !model) {
+    throw new Error("default evaluator model could not be resolved");
+  }
+  return splitModelRef(`${provider}/${model}`)!;
+}
+
+function readDefaultModelRef(config: unknown): string | undefined {
+  if (!isRecord(config) || !isRecord(config.agents) || !isRecord(config.agents.defaults)) return undefined;
+  const model = config.agents.defaults.model;
+  if (typeof model === "string" && model.trim()) return model.trim();
+  return isRecord(model) && typeof model.primary === "string" && model.primary.trim() ? model.primary.trim() : undefined;
 }
 
 export function configWithoutUserMcpServers<T>(config: T): T {

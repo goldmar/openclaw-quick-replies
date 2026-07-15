@@ -36,6 +36,12 @@
         "type": "string",
         "description": "Optional provider/model override for suggestion evaluation."
       },
+      "thinkLevel": {
+        "type": "string",
+        "enum": ["off", "minimal", "low", "medium", "high", "xhigh", "adaptive", "max", "ultra"],
+        "default": "minimal",
+        "description": "Thinking level used by the embedded evaluator model run."
+      },
       "maxInputChars": {
         "type": "integer",
         "default": 1200,
@@ -84,6 +90,10 @@
     "model": {
       "label": "Evaluator model",
       "placeholder": "provider/model",
+      "advanced": true
+    },
+    "thinkLevel": {
+      "label": "Evaluator thinking level",
       "advanced": true
     },
     "maxInputChars": {

@@ -83,7 +83,7 @@ describe("reply payload decoration", () => {
     assert.equal(calls, 1);
   });
 
-  it("isolates the cache by message text, model, and relevant configuration", async () => {
+  it("isolates the cache by message text, model, thinking level, and relevant configuration", async () => {
     let calls = 0;
     const host = api();
     const hook = createQuickReplyPayloadHook(host, { evaluator: { async evaluate() { calls++; return eligible(); } } });
@@ -93,7 +93,22 @@ describe("reply payload decoration", () => {
     await hook(event("Continue?"), context);
     host.pluginConfig = { model: "openai/model-a", maxSuggestions: 4 };
     await hook(event("Continue?"), context);
-    assert.equal(calls, 4);
+    host.pluginConfig = { model: "openai/model-a", maxSuggestions: 4, thinkLevel: "high" };
+    await hook(event("Continue?"), context);
+    assert.equal(calls, 5);
+  });
+
+  it("isolates implicit-model cache entries when the host default model changes", async () => {
+    let calls = 0;
+    const host = api();
+    host.config = { agents: { defaults: { model: { primary: "openai/supports-high" } } } } as OpenClawPluginApi["config"];
+    const hook = createQuickReplyPayloadHook(host, { evaluator: { async evaluate() { calls++; return eligible(); } } });
+
+    await hook(event("Continue?"), context);
+    host.config = { agents: { defaults: { model: { primary: "openai/no-high" } } } } as OpenClawPluginApi["config"];
+    await hook(event("Continue?"), { ...context, messageId: "message-2" });
+
+    assert.equal(calls, 2);
   });
 
   it("does not cache transient evaluator failures across messages", async () => {
@@ -140,6 +155,19 @@ describe("reply payload decoration", () => {
     assert.equal(buttons?.type, "buttons");
     assert.deepEqual(buttons?.type === "buttons" ? buttons.buttons.map((button) => button.label) : [], ["Staging", "Production", "Cancel"]);
     assert.ok(buttons?.type === "buttons" && buttons.buttons.every((button) => button.action?.type === "callback"));
+  });
+
+  it("always sends explicit numbered and bulleted choices to the evaluator", async () => {
+    const seen: string[] = [];
+    const hook = createQuickReplyPayloadHook(api(), {
+      evaluator: { async evaluate(input) { seen.push(input.text); return eligible(["Staging", "Production"]); } },
+    });
+    const numbered = "Choose one:\n1. Staging\n2. Production";
+    const bulleted = "Choose one:\n- Staging\n- Production";
+
+    assert.ok(await hook(event(numbered), context));
+    assert.ok(await hook(event(bulleted), { ...context, messageId: "message-2" }));
+    assert.deepEqual(seen, [numbered, bulleted]);
   });
 
   it("suppresses existing controls and ignores undocumented metadata quick replies", async () => {

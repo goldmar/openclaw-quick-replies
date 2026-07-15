@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { DEFAULT_CONFIG, resolveQuickReplyConfig, validateEvaluatorDecision } from "../src/config";
+import { DEFAULT_CONFIG, QUICK_REPLY_THINK_LEVELS, resolveQuickReplyConfig, validateEvaluatorDecision } from "../src/config";
 
 const manifest = JSON.parse(readFileSync(join(import.meta.dirname, "..", "openclaw.plugin.json"), "utf8"));
 
@@ -13,6 +13,7 @@ describe("public configuration", () => {
       "enabled",
       "maxSuggestions",
       "minConfidence",
+      "thinkLevel",
       "maxInputChars",
       "maxLabelChars",
       "maxValueBytes",
@@ -27,6 +28,8 @@ describe("public configuration", () => {
     assert.equal(properties.maxValueBytes.type, "integer");
     assert.equal(properties.evaluationTimeoutMs.type, "integer");
     assert.equal(DEFAULT_CONFIG.evaluationTimeoutMs, 20_000);
+    assert.equal(DEFAULT_CONFIG.thinkLevel, "minimal");
+    assert.deepEqual(properties.thinkLevel.enum, QUICK_REPLY_THINK_LEVELS);
   });
 
   it("clamps integers and normalizes the model override", () => {
@@ -35,6 +38,7 @@ describe("public configuration", () => {
       maxSuggestions: 99,
       minConfidence: -1,
       model: "  openai/example  ",
+      thinkLevel: "high",
       maxInputChars: 99_999,
       maxLabelChars: 99,
       maxValueBytes: 99,
@@ -45,12 +49,21 @@ describe("public configuration", () => {
       maxSuggestions: 10,
       minConfidence: 0,
       model: "openai/example",
+      thinkLevel: "high",
       maxInputChars: 12_000,
       maxLabelChars: 64,
       maxValueBytes: 42,
       evaluationTimeoutMs: 30_000,
       updateChecks: false,
     });
+  });
+
+  it("accepts every embedded-run thinking level and defaults invalid or omitted values", () => {
+    for (const thinkLevel of QUICK_REPLY_THINK_LEVELS) {
+      assert.equal(resolveQuickReplyConfig({ thinkLevel }).thinkLevel, thinkLevel);
+    }
+    assert.equal(resolveQuickReplyConfig({}).thinkLevel, "minimal");
+    assert.equal(resolveQuickReplyConfig({ thinkLevel: "extra-high" }).thinkLevel, "minimal");
   });
 
   it("removes requiresConfirmation and validates values by UTF-8 bytes", () => {

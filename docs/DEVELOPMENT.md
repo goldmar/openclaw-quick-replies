@@ -11,6 +11,7 @@
 corepack enable
 pnpm install --frozen-lockfile
 pnpm verify
+pnpm benchmark:evaluator-overhead
 pnpm proof:quick-replies:all
 pnpm validate:release-metadata -- "$(node -p "require('./package.json').version")"
 pnpm audit:prod
@@ -18,6 +19,10 @@ pnpm pack:dry-run
 ```
 
 `pnpm verify` runs typecheck, the production bundle, and all tests. The proof suite writes only under `.artifacts/qa-e2e/quick-replies`, and generated output is ignored.
+
+`pnpm audit:prod` builds a temporary npm lockfile for the package's owned production dependencies and audits it at high severity. The temporary directory is always removed; development dependencies and the host-provided OpenClaw peer are intentionally excluded.
+
+`pnpm benchmark:evaluator-overhead` reports plugin-side hook dispatch and validation latency with an immediate evaluator stub. It is credential-free and intentionally excludes provider/model latency; use the structured runtime evaluator diagnostics for end-to-end measurements in a configured installation.
 
 To test the exact package artifact:
 
