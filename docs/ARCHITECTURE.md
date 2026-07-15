@@ -2,7 +2,9 @@
 
 Quick Replies is a Telegram-only OpenClaw hook plugin with a small update-check service.
 
-The `reply_payload_sending` hook rejects unsupported channels, non-plain payloads, existing controls, long input, and messages without an explicit ask. Eligible text is evaluated through `api.runtime.agent.runEmbeddedAgent` as a raw `modelRun` with tools and delivery disabled. The run receives an immutable config projection without OpenClaw user MCP servers; the shared OpenClaw config is never changed. The validated decision becomes portable `presentation.blocks` callback buttons.
+The `reply_payload_sending` hook rejects unsupported channels, non-plain payloads, existing controls, long input, and messages without an explicit ask. Eligible text is evaluated through `api.runtime.agent.runEmbeddedAgent` as a raw `modelRun` with tools and delivery disabled. The configured `thinkLevel` is passed directly to that embedded run; reasoning visibility remains off. The run receives an immutable config projection without OpenClaw user MCP servers; the shared OpenClaw config is never changed. The validated decision becomes portable `presentation.blocks` callback buttons.
+
+There is no deterministic choice-generation fast path. Numbered and bulleted choice messages that pass the structural filters still require the model evaluator, preserving a single eligibility and generation path for ambiguous and explicit prompts alike. OpenClaw 2026.7.1 does not expose a structured-output schema parameter on `runEmbeddedAgent`, so the evaluator requests JSON in its prompt and validates the parsed result locally.
 
 Evaluation has a configurable timeout, cancellation of timed-out embedded runs, concurrent promise deduplication, and a bounded five-minute semantic result cache. Message identifiers are not part of the cache key, so the same text and evaluator settings can reuse a validated eligible or ineligible decision. Failures and timeouts are never cached and are retried by later messages. Timeout or any evaluator failure leaves the outgoing payload unchanged.
 

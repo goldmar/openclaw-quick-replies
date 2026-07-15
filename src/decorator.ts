@@ -164,7 +164,7 @@ async function resolveDecision(params: {
     return existing;
   }
 
-  logDiagnostic(deps, "evaluation_started", { model: config.model ?? "default" });
+  logDiagnostic(deps, "evaluation_started", { model: config.model ?? "default", thinkLevel: config.thinkLevel });
   const evaluator = deps.evaluator ?? new ManagedAgentQuickReplyEvaluator(api, config, deps.log);
   const evaluation = evaluateWithTimeout(evaluator, input, config.evaluationTimeoutMs)
     .then((result) => {
@@ -292,6 +292,7 @@ function decisionCacheKey(input: QuickReplyEvaluationInput, config: QuickReplyCo
     text: input.text,
     channel: input.channel,
     model: config.model ?? "",
+    thinkLevel: config.thinkLevel,
     maxSuggestions: config.maxSuggestions,
     minConfidence: config.minConfidence,
     maxInputChars: config.maxInputChars,

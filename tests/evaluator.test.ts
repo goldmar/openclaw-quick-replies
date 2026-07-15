@@ -47,6 +47,8 @@ describe("managed evaluator", () => {
 
     assert.equal(result.decision?.eligible, true);
     assert.equal(request?.modelRun, true);
+    assert.equal(request?.thinkLevel, "minimal");
+    assert.equal(request?.reasoningLevel, "off");
     assert.equal(request?.disableTools, true);
     assert.deepEqual(request?.toolsAllow, []);
     assert.equal(request?.agentHarnessRuntimeOverride, "codex");
@@ -54,6 +56,24 @@ describe("managed evaluator", () => {
     assert.equal((request?.config as typeof config).mcp.servers, undefined);
     assert.equal((request?.config as typeof config).mcp.sessionIdleTtlMs, 60_000);
     assert.deepEqual(config.mcp.servers, { search: { command: "search-mcp" } });
+  });
+
+  it("passes a configured thinking level through the embedded-run API", async () => {
+    let request: Record<string, unknown> | undefined;
+    const host = {
+      config: {},
+      runtime: {
+        agent: {
+          runEmbeddedAgent: async (value: Record<string, unknown>) => {
+            request = value;
+            return { payloads: [{ text: '{"eligible":false,"confidence":1,"reason":"status","suggestions":[]}' }] };
+          },
+        },
+      },
+    } as unknown as Pick<OpenClawPluginApi, "config" | "runtime">;
+
+    await new ManagedAgentQuickReplyEvaluator(host, { ...DEFAULT_CONFIG, thinkLevel: "adaptive" }).evaluate(input);
+    assert.equal(request?.thinkLevel, "adaptive");
   });
 
   it("passes the caller's cancellation signal to the embedded run", async () => {

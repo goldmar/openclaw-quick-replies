@@ -119,6 +119,7 @@ No configuration is required. To change the defaults, add settings under `plugin
 | `maxSuggestions` | `6` | Maximum number of buttons shown for one message (1–10). |
 | `minConfidence` | `0.7` | How certain the evaluator must be before buttons appear (0–1). |
 | `model` | OpenClaw default | Optional evaluator model in `provider/model` format. |
+| `thinkLevel` | `minimal` | Embedded evaluator thinking level: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `adaptive`, `max`, or `ultra`. |
 | `maxInputChars` | `1200` | Longest message the plugin will evaluate (1–12000). |
 | `maxLabelChars` | `24` | Longest visible button label (1–64). |
 | `maxValueBytes` | `42` | Maximum submitted answer size (1–42 UTF-8 bytes). |
@@ -145,9 +146,13 @@ If you choose a specific `model`, OpenClaw requires you to allow that exact mode
 
 Use `openclaw models list` to find a model available to your installation. A small, fast model is usually the best fit because this task is limited to deciding whether a message needs buttons and proposing short answers. On OpenClaw 2026.7.1, local representative testing found subscription-backed Luna and Codex Spark effectively tied and GPT-5.4 Mini slower; all returned valid complete choice sets. Keep Luna when it is available rather than assuming a smaller model will reduce end-to-end latency.
 
+`thinkLevel` maps directly to OpenClaw's embedded-run thinking control. Quick Replies defaults it to `minimal`, the lowest nonzero level, to keep this bounded evaluator responsive while retaining a small reasoning budget. Before this setting was added, an omitted value inherited the host/model default; existing configurations remain valid, but can set a different listed value explicitly if they need the previous effective behavior. This is separate from reasoning visibility, which remains disabled for the evaluator.
+
 ## Model usage, cost, and privacy
 
 Each eligible message can make one additional model request. The cost and latency depend on the model provider configured in OpenClaw. Identical requests happening at the same time share one evaluation, and validated eligible or ineligible decisions are cached briefly to avoid unnecessary repeat calls. Failures and timeouts are not cached.
+
+Numbered and bulleted choices are still evaluated by the model. Quick Replies does not use a deterministic list parser or other non-model path to decide eligibility or generate answers.
 
 The evaluator receives the outgoing message text and the Telegram channel name. It runs in an isolated temporary raw-model session with tools and message delivery disabled. OpenClaw user MCP servers are removed from the per-run config without changing shared configuration. OpenClaw 2026.7.1 can still inherit MCP servers from Codex's own user configuration; see [the architecture note](docs/ARCHITECTURE.md#openclaw-202671-codex-mcp-limitation). If an outgoing message must not be sent to your configured model provider, do not use Quick Replies for that conversation.
 

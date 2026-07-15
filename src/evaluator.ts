@@ -48,6 +48,7 @@ export class ManagedAgentQuickReplyEvaluator implements QuickReplyEvaluator {
           trigger: "manual",
           ...(model ? { provider: model.provider, model: model.model } : {}),
           ...(model?.harness ? { agentHarnessRuntimeOverride: model.harness } : {}),
+          thinkLevel: this.config.thinkLevel,
           disableTools: true,
           disableMessageTool: true,
           toolsAllow: [],

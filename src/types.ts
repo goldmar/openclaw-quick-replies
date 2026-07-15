@@ -3,12 +3,24 @@ export type QuickReplyConfig = {
   maxSuggestions: number;
   minConfidence: number;
   model?: string;
+  thinkLevel: QuickReplyThinkLevel;
   maxInputChars: number;
   maxLabelChars: number;
   maxValueBytes: number;
   evaluationTimeoutMs: number;
   updateChecks: boolean;
 };
+
+export type QuickReplyThinkLevel =
+  | "off"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "adaptive"
+  | "max"
+  | "ultra";
 
 export type QuickReplySuggestion = {
   label: string;
