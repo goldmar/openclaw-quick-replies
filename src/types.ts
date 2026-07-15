@@ -48,6 +48,7 @@ export type QuickReplyDiagnosticReason =
   | "evaluator_timeout"
   | "evaluator_invalid_json"
   | "evaluator_invalid_decision"
+  | "evaluator_unsupported_think_level"
   | "no_decision";
 
 export type QuickReplyEvaluationResult = {

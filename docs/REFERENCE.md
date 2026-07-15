@@ -19,7 +19,7 @@ The public keys are `enabled`, `maxSuggestions`, `minConfidence`, `model`, `thin
 
 ## Suppression rules
 
-The plugin suppresses non-Telegram delivery, empty or oversized text, media, voice/TTS supplements, errors, reasoning/commentary, status/fallback/compaction notices, existing portable controls, channel-native controls, non-explicit asks, evaluator failures, low confidence, invalid suggestions, incomplete explicit option sets, and values that cannot fit the callback contract.
+The plugin suppresses non-Telegram delivery, empty or oversized text, media, voice/TTS supplements, errors, reasoning/commentary, status/fallback/compaction notices, existing portable controls, channel-native controls, non-explicit asks, evaluator failures, thinking levels unsupported by the selected model/runtime, low confidence, invalid suggestions, incomplete explicit option sets, and values that cannot fit the callback contract.
 
 ## Evaluation diagnostics
 
