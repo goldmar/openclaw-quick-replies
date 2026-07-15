@@ -45,11 +45,11 @@ async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChe
     try {
       await checker.install(callback.version);
     } catch (error) {
-      await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nThe Quick Replies update failed or could not be verified. Check the Gateway logs and try again.`, checker, callback);
+      await editOrReply(ctx, `${ctx.messageText.trimEnd()}\n\nThe Quick Replies update failed or could not be verified. Check the Gateway logs and try again.`, checker, callback);
       return { handled: true };
     }
     const restartData = buildUpdateCallbackData("restart", callback.version)!;
-    await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nQuick Replies v${callback.version} was installed and verified. Restart the Gateway to load it.`, checker, callback, [[
+    await editOrReply(ctx, `${ctx.messageText.trimEnd()}\n\nQuick Replies v${callback.version} was installed and verified. Restart the Gateway to load it.`, checker, callback, [[
       { text: "Restart Gateway", callback_data: restartData },
     ]]);
     return { handled: true };
@@ -74,16 +74,50 @@ function parseContext(raw: unknown): {
   authorized: boolean;
   data: unknown;
   editMessage: (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>;
+  reply: (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>;
   messageText: string;
 } | null {
   if (!isRecord(raw) || !isRecord(raw.callback) || !isRecord(raw.auth) || !isRecord(raw.respond)) return null;
-  if (typeof raw.respond.editMessage !== "function") return null;
+  if (typeof raw.respond.editMessage !== "function" || typeof raw.respond.reply !== "function") return null;
   return {
     authorized: raw.auth.isAuthorizedSender === true,
     data: raw.callback.data,
     editMessage: raw.respond.editMessage as (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>,
+    reply: raw.respond.reply as (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>,
     messageText: typeof raw.callback.messageText === "string" ? raw.callback.messageText.trim() : "Quick Replies update",
   };
+}
+
+async function editOrReply(
+  ctx: {
+    editMessage: (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>;
+    reply: (params: { text: string; buttons: TelegramButton[][] }) => Promise<void>;
+  },
+  text: string,
+  checker: QuickRepliesUpdateChecker,
+  callback: { action: "install" | "restart"; version: string },
+  buttons: TelegramButton[][] = [],
+): Promise<void> {
+  try {
+    await ctx.editMessage({ text, buttons });
+    return;
+  } catch (error) {
+    checker.logCallback("update_callback_edit_failed", {
+      action: callback.action,
+      version: callback.version,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  try {
+    await ctx.reply({ text, buttons });
+  } catch (error) {
+    checker.logCallback("update_callback_fallback_failed", {
+      action: callback.action,
+      version: callback.version,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 async function safeEdit(
