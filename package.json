@@ -20,7 +20,7 @@
     "README.md"
   ],
   "scripts": {
-    "audit:prod": "pnpm audit --prod --audit-level high",
+    "audit:prod": "node scripts/audit-production.mjs",
     "benchmark:evaluator-overhead": "node --import tsx scripts/benchmark-evaluator-overhead.ts",
     "build": "esbuild index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/index.js --minify --charset=utf8 --external:openclaw/plugin-sdk/plugin-entry --external:openclaw/plugin-sdk/plugin-runtime",
     "pack:dry-run": "npm pack --dry-run --json",
