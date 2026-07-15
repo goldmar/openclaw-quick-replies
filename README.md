@@ -8,7 +8,7 @@
 
 OpenClaw Quick Replies adds useful reply buttons when your assistant asks a clear question, requests an answer, or presents a short list of choices. Instead of typing “Approve,” “Staging,” or “Hold off,” you can tap once and keep moving.
 
-There is no need to build buttons into every workflow. Quick Replies works across your OpenClaw Telegram conversations, stays out of the way when a message does not need a choice, and removes the buttons after you select an answer so the chat remains easy to follow.
+There is no need to build buttons into every workflow. OpenClaw Quick Replies works across your OpenClaw Telegram conversations, stays out of the way when a message does not need a choice, and removes the buttons after you select an answer so the chat remains easy to follow.
 
 ## Where it works
 
@@ -16,7 +16,7 @@ There is no need to build buttons into every workflow. Quick Replies works acros
 | --- | --- | --- |
 | Telegram | **Supported** | Suggested replies appear as buttons. A tap is sent back to your assistant in the context of the original question. |
 | Discord | Not yet supported | OpenClaw can display and acknowledge Discord interactions, but does not yet provide plugins a supported way to send a generic selected reply back to the agent. |
-| Other channels | Not supported | Quick Replies does not add buttons or handle selections on these channels. |
+| Other channels | Not supported | OpenClaw Quick Replies does not add buttons or handle selections on these channels. |
 
 Discord support can be added when OpenClaw exposes a generic inbound reply-submission contract like Telegram's `submitText` path. `openclaw-code-agent` can offer Discord buttons today because each button performs a specific action owned by that plugin; that stateful design cannot safely stand in for arbitrary quick-reply text.
 
@@ -28,7 +28,7 @@ Discord support can be added when OpenClaw exposes a generic inbound reply-submi
 
 ![The same OpenClaw Telegram conversation after Staging is selected and the assistant continues with that choice](docs/assets/quick-reply-selected.png)
 
-## Why use Quick Replies?
+## Why use OpenClaw Quick Replies?
 
 - **Make decisions faster.** Answer approvals, yes/no questions, and short choices with one tap.
 - **Use it across workflows.** You do not have to hand-code buttons for every prompt or automation.
@@ -44,7 +44,7 @@ Suppose OpenClaw asks:
 
 > Where should I deploy this: staging, production, or should I hold off?
 
-Quick Replies can add:
+OpenClaw Quick Replies can add:
 
 ```text
 [ Staging ]  [ Production ]  [ Hold off ]
@@ -81,9 +81,9 @@ That is all most installations need. The default settings are designed to work w
 
 ## How it decides when to show buttons
 
-For each eligible Telegram message, Quick Replies asks a small, tool-disabled evaluator to determine whether the message calls for a concise set of answers. It then checks that the suggestions are complete, short, and confident enough to display.
+For each eligible Telegram message, OpenClaw Quick Replies asks a small, tool-disabled evaluator to determine whether the message calls for a concise set of answers. It then checks that the suggestions are complete, short, and confident enough to display.
 
-Quick Replies leaves the message unchanged when:
+OpenClaw Quick Replies leaves the message unchanged when:
 
 - it is not an explicit question, answer request, or numbered/bulleted choice;
 - it is an update, error, reasoning trace, fallback notice, or media message;
@@ -115,7 +115,7 @@ No configuration is required. To change the defaults, add settings under `plugin
 
 | Setting | Default | What it changes |
 | --- | ---: | --- |
-| `enabled` | `true` | Turns Quick Replies on or off. |
+| `enabled` | `true` | Turns OpenClaw Quick Replies on or off. |
 | `maxSuggestions` | `6` | Maximum number of buttons shown for one message (1–10). |
 | `minConfidence` | `0.7` | How certain the evaluator must be before buttons appear (0–1). |
 | `model` | OpenClaw default | Optional evaluator model in `provider/model` format. |
@@ -146,23 +146,23 @@ If you choose a specific `model`, OpenClaw requires you to allow that exact mode
 
 Use `openclaw models list` to find a model available to your installation. A small, fast model is usually the best fit because this task is limited to deciding whether a message needs buttons and proposing short answers. On OpenClaw 2026.7.1, local representative testing found subscription-backed Luna and Codex Spark effectively tied and GPT-5.4 Mini slower; all returned valid complete choice sets. Keep Luna when it is available rather than assuming a smaller model will reduce end-to-end latency.
 
-`thinkLevel` maps directly to OpenClaw's embedded-run thinking control. Quick Replies defaults it to `minimal`, the lowest nonzero level, to keep this bounded evaluator responsive while retaining a small reasoning budget. Before this setting was added, an omitted value inherited the host/model default; existing configurations remain valid, but can set a different listed value explicitly if they need the previous effective behavior. OpenClaw models can support different subsets of the listed levels, so Quick Replies checks the selected model's runtime thinking policy and sends the message without buttons rather than silently substituting another level when the configured value is unsupported. This is separate from reasoning visibility, which remains disabled for the evaluator.
+`thinkLevel` maps directly to OpenClaw's embedded-run thinking control. OpenClaw Quick Replies defaults it to `minimal`, the lowest nonzero level, to keep this bounded evaluator responsive while retaining a small reasoning budget. Before this setting was added, an omitted value inherited the host/model default; existing configurations remain valid, but can set a different listed value explicitly if they need the previous effective behavior. OpenClaw models can support different subsets of the listed levels, so OpenClaw Quick Replies checks the selected model's runtime thinking policy and sends the message without buttons rather than silently substituting another level when the configured value is unsupported. This is separate from reasoning visibility, which remains disabled for the evaluator.
 
 ## Model usage, cost, and privacy
 
 Each eligible message can make one additional model request. The cost and latency depend on the model provider configured in OpenClaw. Identical requests happening at the same time share one evaluation, and validated eligible or ineligible decisions are cached briefly to avoid unnecessary repeat calls. Failures and timeouts are not cached.
 
-Numbered and bulleted choices are still evaluated by the model. Quick Replies does not use a deterministic list parser or other non-model path to decide eligibility or generate answers.
+Numbered and bulleted choices are still evaluated by the model. OpenClaw Quick Replies does not use a deterministic list parser or other non-model path to decide eligibility or generate answers.
 
-The evaluator receives the outgoing message text and the Telegram channel name. It runs in an isolated temporary raw-model session with tools and message delivery disabled. OpenClaw user MCP servers are removed from the per-run config without changing shared configuration. OpenClaw 2026.7.1 can still inherit MCP servers from Codex's own user configuration; see [the architecture note](docs/ARCHITECTURE.md#openclaw-202671-codex-mcp-limitation). If an outgoing message must not be sent to your configured model provider, do not use Quick Replies for that conversation.
+The evaluator receives the outgoing message text and the Telegram channel name. It runs in an isolated temporary raw-model session with tools and message delivery disabled. OpenClaw user MCP servers are removed from the per-run config without changing shared configuration. OpenClaw 2026.7.1 can still inherit MCP servers from Codex's own user configuration; see [the architecture note](docs/ARCHITECTURE.md#openclaw-202671-codex-mcp-limitation). If an outgoing message must not be sent to your configured model provider, do not use OpenClaw Quick Replies for that conversation.
 
-Quick Replies does not send button values to its own remote service. It keeps recent source-message identifiers in process memory for five minutes to prevent a repeated tap from submitting the same answer twice.
+OpenClaw Quick Replies does not send button values to its own remote service. It keeps recent source-message identifiers in process memory for five minutes to prevent a repeated tap from submitting the same answer twice.
 
 When `updateChecks` is enabled, the plugin requests public package metadata from the npm registry at most once per day. It sends no conversation content, user identifier, or configuration with that request. Disable `updateChecks` if you prefer to manage updates entirely yourself.
 
 ## Safe selections
 
-Quick Replies accepts only authorized Telegram callbacks that still contain the original message context. Malformed, oversized, altered, repeated, or context-free selections are ignored rather than being submitted as detached instructions.
+OpenClaw Quick Replies accepts only authorized Telegram callbacks that still contain the original message context. Malformed, oversized, altered, repeated, or context-free selections are ignored rather than being submitted as detached instructions.
 
 After a valid tap, the plugin:
 
@@ -178,12 +178,12 @@ See [SECURITY.md](SECURITY.md) for the full security boundary and reporting inst
 - **The plugin is not listed:** Run `openclaw plugins inspect openclaw-quick-replies --runtime --json`, then restart the Gateway if needed.
 - **A model override is rejected:** Add the exact `provider/model` value to this plugin's `llm.allowedModels` list.
 - **Messages feel slower:** Inspect `evaluation_started`, `evaluation_cache_hit`, `evaluator_completed`, `evaluator_cleanup`, and `decorated`/`suppressed` diagnostics. Their bounded millisecond fields separate plugin work from the embedded model run; Telegram transport begins afterward. Lowering `evaluationTimeoutMs` limits delay and cancels the run, while a timeout still delivers the original message.
-- **One of the listed choices is missing:** Quick Replies suppresses the entire button set when the evaluator does not return every option.
+- **One of the listed choices is missing:** OpenClaw Quick Replies suppresses the entire button set when the evaluator does not return every option.
 - **A button tap does nothing:** Stale, repeated, unauthorized, or altered callbacks are deliberately ignored.
 
 ## Updates and compatibility
 
-Quick Replies requires OpenClaw 2026.7.1 or newer and Node.js 22.22.3 or newer. Update it through OpenClaw:
+OpenClaw Quick Replies requires OpenClaw 2026.7.1 or newer and Node.js 22.22.3 or newer. Update it through OpenClaw:
 
 ```bash
 openclaw plugins update openclaw-quick-replies
@@ -191,7 +191,7 @@ openclaw plugins update openclaw-quick-replies
 
 OpenClaw does not schedule this command by itself. Run it when you want to check manually, or schedule `openclaw plugins update --all` centrally for all of your plugins.
 
-Quick Replies can also check npm once per day in the background. When a newer stable version exists, it adds an update control to a suitable Telegram message that does not already have buttons. The control delegates installation to OpenClaw's native plugin manager with the exact version you approved, preserving the managed npm or ClawHub source through an exact-version force reinstall. It then verifies the installed version before offering a separate Gateway restart confirmation. Set `updateChecks` to `false` to disable these notices.
+OpenClaw Quick Replies can also check npm once per day in the background. When a newer stable version exists, it adds an update control to a suitable Telegram message that does not already have buttons. The control delegates installation to OpenClaw's native plugin manager with the exact version you approved, preserving the managed npm or ClawHub source through an exact-version force reinstall. It then verifies the installed version before offering a separate Gateway restart confirmation. Set `updateChecks` to `false` to disable these notices.
 
 ## Development
 

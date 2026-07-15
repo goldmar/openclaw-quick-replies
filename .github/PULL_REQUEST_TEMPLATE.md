@@ -4,7 +4,7 @@
 
 ## Workflow Impact
 
-<!-- Which Quick Replies path is affected: runtime LLM suggestions, callback handling, install/config, docs, release prep, or tests? -->
+<!-- Which OpenClaw Quick Replies path is affected: runtime LLM suggestions, callback handling, install/config, docs, release prep, or tests? -->
 
 ## Changes
 
@@ -15,7 +15,7 @@
 - [ ] `pnpm run verify` passes
 - [ ] `pnpm run release:check` passes when package or release metadata changed
 - [ ] Public-release boundary respected
-- [ ] No regressions in existing Quick Replies behavior
+- [ ] No regressions in existing OpenClaw Quick Replies behavior
 
 ## Notes
 

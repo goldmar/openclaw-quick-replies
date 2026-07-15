@@ -14,7 +14,7 @@ For ordinary bugs and support questions, use the repository issue templates inst
 
 ## Security boundaries
 
-- Quick Replies supports Telegram only and requires OpenClaw 2026.7.1 or newer.
+- OpenClaw Quick Replies supports Telegram only and requires OpenClaw 2026.7.1 or newer.
 - The evaluator receives outbound message text and the channel name. It runs through OpenClaw's managed agent runtime with tools and message delivery disabled.
 - Evaluation output is untrusted and must pass schema, confidence, count, length, byte-budget, and callback validation.
 - Callback values use canonical `oqr:v1:<base64url>` data and are limited to 42 UTF-8 bytes.
