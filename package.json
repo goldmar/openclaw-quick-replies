@@ -1,6 +1,6 @@
 {
   "name": "openclaw-quick-replies",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Telegram quick reply suggestions for OpenClaw conversations.",
   "type": "module",
   "engines": {

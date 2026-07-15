@@ -4,6 +4,8 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+## 0.1.4
+
 - Added a supported `thinkLevel` evaluator setting, defaulting to the lowest nonzero `minimal` level and passed directly to OpenClaw's embedded model run, with cache isolation, documentation, and regression coverage.
 - Validated evaluator thinking levels against the selected model's OpenClaw runtime policy and fail open instead of silently substituting an unsupported level.
 - Confirmed explicit numbered and bulleted choices continue through the model evaluator rather than a deterministic fast path, and added a credential-free plugin-overhead benchmark.
