@@ -4,6 +4,11 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+## 0.1.5
+
+- Fixed update-result delivery so a failed Telegram message edit falls back to a normal reply, preserving the Gateway restart control after a successful installation.
+- Updated customer-facing references to consistently use the full OpenClaw Quick Replies name.
+
 ## 0.1.4
 
 - Added a supported `thinkLevel` evaluator setting, defaulting to the lowest nonzero `minimal` level and passed directly to OpenClaw's embedded model run, with cache isolation, documentation, and regression coverage.
