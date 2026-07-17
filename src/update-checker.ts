@@ -106,6 +106,7 @@ export class QuickRepliesUpdateChecker {
   private readonly runCommand: CommandRunner;
   private readonly now: () => number;
   private readonly installInFlight = new Map<string, Promise<void>>();
+  private readonly restartInFlight = new Map<string, Promise<void>>();
   private statePath: string | undefined;
   private checkInFlight: Promise<void> | undefined;
   private timer: ReturnType<typeof setInterval> | undefined;
@@ -239,14 +240,25 @@ export class QuickRepliesUpdateChecker {
     return Number.isFinite(promptedAt) && age >= 0 && age <= UPDATE_RESTART_APPROVAL_TTL_MS;
   }
 
+  isRestarting(version: string): boolean {
+    const normalized = normalizeStableVersion(version);
+    return Boolean(normalized && this.restartInFlight.has(normalized));
+  }
+
   async restart(version: string): Promise<void> {
     const normalized = normalizeStableVersion(version);
+    const existing = normalized ? this.restartInFlight.get(normalized) : undefined;
+    if (existing) return existing;
     if (!normalized || !this.canRestart(normalized)) throw new Error("Restart approval is missing, expired, or invalid.");
     const state = this.readState();
     delete state.restartPromptedVersion;
     delete state.restartPromptedAt;
     this.writeState(state);
-    await this.runCommand("openclaw", ["gateway", "restart"]);
+    const restart = this.runCommand("openclaw", ["gateway", "restart"])
+      .then(() => undefined)
+      .finally(() => this.restartInFlight.delete(normalized));
+    this.restartInFlight.set(normalized, restart);
+    return restart;
   }
 
   private async checkForUpdate(): Promise<void> {
