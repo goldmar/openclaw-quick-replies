@@ -40,6 +40,7 @@ async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChe
   if (callback.action === "install") {
     if (!checker.canInstall(callback.version)) {
       checker.logCallback("update_callback_rejected", { action: callback.action, version: callback.version, reason: "not_approved" });
+      await editOrReply(ctx, approvalRejectedText(ctx.messageText, "update"), checker, callback);
       return { handled: true };
     }
     try {
@@ -57,6 +58,7 @@ async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChe
 
   if (!checker.canRestart(callback.version)) {
     checker.logCallback("update_callback_rejected", { action: callback.action, version: callback.version, reason: "not_approved" });
+    await editOrReply(ctx, approvalRejectedText(ctx.messageText, "restart"), checker, callback);
     return { handled: true };
   }
   checker.logCallback("gateway_restart_approved", { version: callback.version });
@@ -68,6 +70,10 @@ async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChe
     await safeEdit(ctx, `${ctx.messageText.trimEnd()}\n\nThe Gateway restart failed. Run: openclaw gateway restart`, checker, callback);
   }
   return { handled: true };
+}
+
+function approvalRejectedText(messageText: string, action: "update" | "restart"): string {
+  return `${messageText.trimEnd()}\n\nThis ${action} approval is no longer valid. It may have expired or belonged to an earlier plugin session. Wait for a new update notice and try again.`;
 }
 
 function parseContext(raw: unknown): {

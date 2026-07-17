@@ -176,6 +176,7 @@ describe("OpenClaw Quick Replies update checker", () => {
 
   it("rejects unauthorized, unprompted, and repeated install callbacks", async () => {
     const commands: string[][] = [];
+    const responses: string[] = [];
     const checker = new QuickRepliesUpdateChecker({
       currentVersion: "0.1.1",
       enabled: () => true,
@@ -187,12 +188,17 @@ describe("OpenClaw Quick Replies update checker", () => {
     const registration = createUpdateInteractiveHandler(checker);
     const base = {
       callback: { data: "oqru:v1:install:0.1.2", messageText: "Update available" },
-      respond: { editMessage: async () => {}, reply: async () => {} },
+      respond: {
+        editMessage: async ({ text }: { text: string }) => { responses.push(text); },
+        reply: async ({ text }: { text: string }) => { responses.push(text); },
+      },
     };
 
     await registration.handler({ ...base, auth: { isAuthorizedSender: false } });
+    assert.deepEqual(responses, []);
     await registration.handler({ ...base, auth: { isAuthorizedSender: true } });
     assert.deepEqual(commands, []);
+    assert.match(responses[0] ?? "", /update approval is no longer valid/i);
 
     assert.equal(checker.claimPromptVersion(), "0.1.2");
     await registration.handler({ ...base, auth: { isAuthorizedSender: true } });
@@ -202,6 +208,31 @@ describe("OpenClaw Quick Replies update checker", () => {
       ["openclaw", "plugins", "install", "openclaw-quick-replies@0.1.2", "--force"],
       ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
     ]);
+    assert.match(responses.at(-1) ?? "", /update approval is no longer valid/i);
+  });
+
+  it("explains a stale update callback through the reply fallback", async () => {
+    const commands: string[][] = [];
+    const replies: Array<{ text: string; buttons: unknown[] }> = [];
+    const staleChecker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      runCommand: managedRunner(commands),
+    });
+
+    const result = await createUpdateInteractiveHandler(staleChecker).handler({
+      auth: { isAuthorizedSender: true },
+      callback: { data: "oqru:v1:install:0.1.2", messageText: "Update available" },
+      respond: {
+        editMessage: async () => { throw new Error("stale handler cannot edit"); },
+        reply: async (params: typeof replies[number]) => { replies.push(params); },
+      },
+    });
+
+    assert.deepEqual(result, { handled: true });
+    assert.match(replies[0]?.text ?? "", /update approval is no longer valid/i);
+    assert.deepEqual(replies[0]?.buttons, []);
+    assert.deepEqual(commands, []);
   });
 
   it("rejects an expired update approval", async () => {
@@ -241,6 +272,17 @@ describe("OpenClaw Quick Replies update checker", () => {
     now += UPDATE_RESTART_APPROVAL_TTL_MS + 1;
     assert.equal(checker.canRestart("0.1.2"), false);
     await assert.rejects(checker.restart("0.1.2"), /expired/);
+    assert.equal(commands.length, 3);
+
+    const edits: Array<{ text: string; buttons: unknown[] }> = [];
+    const result = await createUpdateInteractiveHandler(checker).handler({
+      auth: { isAuthorizedSender: true },
+      callback: { data: "oqru:v1:restart:0.1.2", messageText: "Update installed" },
+      respond: { editMessage: async (params: typeof edits[number]) => { edits.push(params); } },
+    });
+    assert.deepEqual(result, { handled: true });
+    assert.match(edits[0]?.text ?? "", /restart approval is no longer valid/i);
+    assert.deepEqual(edits[0]?.buttons, []);
     assert.equal(commands.length, 3);
   });
 
