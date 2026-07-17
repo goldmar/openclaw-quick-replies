@@ -319,6 +319,33 @@ describe("OpenClaw Quick Replies update checker", () => {
     assert.ok((edits[0]?.length ?? Infinity) <= 4_096);
   });
 
+  it("keeps a duplicate install's restart prompt within Telegram's limit", async () => {
+    const edits: Array<{ text: string; buttons: Array<Array<{ callback_data: string }>> }> = [];
+    const commands: string[][] = [];
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: managedRunner(commands),
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+    await checker.install("0.1.2");
+
+    const result = await createUpdateInteractiveHandler(checker).handler({
+      auth: { isAuthorizedSender: true },
+      callback: { data: "oqru:v1:install:0.1.2", messageText: "x".repeat(4_090) },
+      respond: { editMessage: async (params: typeof edits[number]) => { edits.push(params); } },
+    });
+
+    assert.deepEqual(result, { handled: true });
+    assert.match(edits[0]?.text ?? "", /^OpenClaw Quick Replies v0\.1\.2 was installed and verified/i);
+    assert.ok((edits[0]?.text.length ?? Infinity) <= 4_096);
+    assert.equal(edits[0]?.buttons[0]?.[0]?.callback_data, "oqru:v1:restart:0.1.2");
+    assert.equal(commands.length, 3);
+  });
+
   it("rejects an expired update approval", async () => {
     let now = Date.parse("2026-07-13T12:00:00.000Z");
     const commands: string[][] = [];

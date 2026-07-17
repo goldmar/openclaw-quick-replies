@@ -43,7 +43,7 @@ async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChe
       if (checker.canRestart(callback.version)) {
         checker.logCallback("update_callback_rejected", { action: callback.action, version: callback.version, reason: "already_installed" });
         const restartData = buildUpdateCallbackData("restart", callback.version)!;
-        await editOrReply(ctx, `${ctx.messageText.trimEnd()}\n\nOpenClaw Quick Replies v${callback.version} was installed and verified. Restart the Gateway to load it.`, checker, callback, [[
+        await editOrReply(ctx, appendBoundedStatus(ctx.messageText, `OpenClaw Quick Replies v${callback.version} was installed and verified. Restart the Gateway to load it.`), checker, callback, [[
           { text: "Restart Gateway", callback_data: restartData },
         ]]);
         return { handled: true };
@@ -87,8 +87,12 @@ async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChe
 
 function approvalRejectedText(messageText: string, action: "update" | "restart"): string {
   const explanation = `This ${action} approval is no longer valid. It may have expired or belonged to an earlier plugin session. Wait for a new update notice and try again.`;
-  const combined = `${messageText.trimEnd()}\n\n${explanation}`;
-  return combined.length <= TELEGRAM_MESSAGE_TEXT_LIMIT ? combined : explanation;
+  return appendBoundedStatus(messageText, explanation);
+}
+
+function appendBoundedStatus(messageText: string, status: string): string {
+  const combined = `${messageText.trimEnd()}\n\n${status}`;
+  return combined.length <= TELEGRAM_MESSAGE_TEXT_LIMIT ? combined : status;
 }
 
 function parseContext(raw: unknown): {
