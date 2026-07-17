@@ -208,7 +208,7 @@ describe("OpenClaw Quick Replies update checker", () => {
       ["openclaw", "plugins", "install", "openclaw-quick-replies@0.1.2", "--force"],
       ["openclaw", "plugins", "inspect", "openclaw-quick-replies", "--json"],
     ]);
-    assert.match(responses.at(-1) ?? "", /update approval is no longer valid/i);
+    assert.match(responses.at(-1) ?? "", /v0\.1\.2 was installed and verified/i);
   });
 
   it("explains a stale update callback through the reply fallback", async () => {
@@ -233,6 +233,90 @@ describe("OpenClaw Quick Replies update checker", () => {
     assert.match(replies[0]?.text ?? "", /update approval is no longer valid/i);
     assert.deepEqual(replies[0]?.buttons, []);
     assert.deepEqual(commands, []);
+  });
+
+  it("keeps the restart prompt when a delayed duplicate install callback arrives", async () => {
+    const commands: string[][] = [];
+    const edits: Array<{ text: string; buttons: Array<Array<{ text: string; callback_data: string }>> }> = [];
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: managedRunner(commands),
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+    const registration = createUpdateInteractiveHandler(checker);
+    const rawContext = {
+      auth: { isAuthorizedSender: true },
+      callback: { data: "oqru:v1:install:0.1.2", messageText: "Update available" },
+      respond: { editMessage: async (params: typeof edits[number]) => { edits.push(params); } },
+    };
+
+    await registration.handler(rawContext);
+    await registration.handler(rawContext);
+
+    assert.equal(edits.length, 2);
+    assert.match(edits[1]?.text ?? "", /v0\.1\.2 was installed and verified/i);
+    assert.equal(edits[1]?.buttons[0]?.[0]?.callback_data, "oqru:v1:restart:0.1.2");
+    assert.equal(commands.length, 3);
+  });
+
+  it("does not replace restart progress when another callback arrives", async () => {
+    let finishRestart!: () => void;
+    const restartPending = new Promise<void>((resolve) => { finishRestart = resolve; });
+    let installed = false;
+    const commands: string[][] = [];
+    const edits: string[] = [];
+    const checker = new QuickRepliesUpdateChecker({
+      currentVersion: "0.1.1",
+      enabled: () => true,
+      fetchLatestVersion: async () => "0.1.2",
+      runCommand: async (command, args) => {
+        commands.push([command, ...args]);
+        if (args[1] === "install") installed = true;
+        if (args[0] === "gateway") {
+          await restartPending;
+          return { stdout: "", stderr: "" };
+        }
+        return { stdout: inspection("npm", installed ? "0.1.2" : "0.1.1"), stderr: "" };
+      },
+    });
+    setUpdateCheckerStateDirForTests(checker, stateDir());
+    await checker.waitForIdle();
+    assert.equal(checker.claimPromptVersion(), "0.1.2");
+    await checker.install("0.1.2");
+    const registration = createUpdateInteractiveHandler(checker);
+    const rawContext = {
+      auth: { isAuthorizedSender: true },
+      callback: { data: "oqru:v1:restart:0.1.2", messageText: "Update installed" },
+      respond: { editMessage: async ({ text }: { text: string }) => { edits.push(text); } },
+    };
+
+    const first = registration.handler(rawContext);
+    while (!checker.isRestarting("0.1.2")) await new Promise((resolve) => setImmediate(resolve));
+    await registration.handler(rawContext);
+    assert.equal(edits.length, 1);
+    assert.match(edits[0] ?? "", /Restarting the Gateway/i);
+    assert.equal(commands.filter((command) => command[1] === "gateway").length, 1);
+
+    finishRestart();
+    await first;
+  });
+
+  it("uses a bounded standalone explanation when the source message is near Telegram's limit", async () => {
+    const edits: string[] = [];
+    const checker = new QuickRepliesUpdateChecker({ currentVersion: "0.1.1", enabled: () => true });
+    const result = await createUpdateInteractiveHandler(checker).handler({
+      auth: { isAuthorizedSender: true },
+      callback: { data: "oqru:v1:install:0.1.2", messageText: "x".repeat(4_090) },
+      respond: { editMessage: async ({ text }: { text: string }) => { edits.push(text); } },
+    });
+
+    assert.deepEqual(result, { handled: true });
+    assert.match(edits[0] ?? "", /^This update approval is no longer valid/i);
+    assert.ok((edits[0]?.length ?? Infinity) <= 4_096);
   });
 
   it("rejects an expired update approval", async () => {

@@ -9,6 +9,7 @@ import {
 
 type UpdateInteractionResult = { handled?: boolean } | void;
 type TelegramButton = { text: string; callback_data: string };
+const TELEGRAM_MESSAGE_TEXT_LIMIT = 4_096;
 
 export function createUpdateInteractiveHandler(
   checker: QuickRepliesUpdateChecker,
@@ -39,6 +40,14 @@ async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChe
 
   if (callback.action === "install") {
     if (!checker.canInstall(callback.version)) {
+      if (checker.canRestart(callback.version)) {
+        checker.logCallback("update_callback_rejected", { action: callback.action, version: callback.version, reason: "already_installed" });
+        const restartData = buildUpdateCallbackData("restart", callback.version)!;
+        await editOrReply(ctx, `${ctx.messageText.trimEnd()}\n\nOpenClaw Quick Replies v${callback.version} was installed and verified. Restart the Gateway to load it.`, checker, callback, [[
+          { text: "Restart Gateway", callback_data: restartData },
+        ]]);
+        return { handled: true };
+      }
       checker.logCallback("update_callback_rejected", { action: callback.action, version: callback.version, reason: "not_approved" });
       await editOrReply(ctx, approvalRejectedText(ctx.messageText, "update"), checker, callback);
       return { handled: true };
@@ -57,6 +66,10 @@ async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChe
   }
 
   if (!checker.canRestart(callback.version)) {
+    if (checker.isRestarting(callback.version)) {
+      checker.logCallback("update_callback_rejected", { action: callback.action, version: callback.version, reason: "already_in_progress" });
+      return { handled: true };
+    }
     checker.logCallback("update_callback_rejected", { action: callback.action, version: callback.version, reason: "not_approved" });
     await editOrReply(ctx, approvalRejectedText(ctx.messageText, "restart"), checker, callback);
     return { handled: true };
@@ -73,7 +86,9 @@ async function handleUpdateCallback(raw: unknown, checker: QuickRepliesUpdateChe
 }
 
 function approvalRejectedText(messageText: string, action: "update" | "restart"): string {
-  return `${messageText.trimEnd()}\n\nThis ${action} approval is no longer valid. It may have expired or belonged to an earlier plugin session. Wait for a new update notice and try again.`;
+  const explanation = `This ${action} approval is no longer valid. It may have expired or belonged to an earlier plugin session. Wait for a new update notice and try again.`;
+  const combined = `${messageText.trimEnd()}\n\n${explanation}`;
+  return combined.length <= TELEGRAM_MESSAGE_TEXT_LIMIT ? combined : explanation;
 }
 
 function parseContext(raw: unknown): {
