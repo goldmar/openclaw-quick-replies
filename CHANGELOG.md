@@ -4,6 +4,8 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+- Renamed the user-facing OpenClaw and ClawHub plugin title from "OpenClaw Quick Replies" to "Quick Replies" while preserving stable package and plugin identifiers.
+
 ## 0.1.5
 
 - Fixed update-result delivery so a failed Telegram message edit falls back to a normal reply, preserving the Gateway restart control after a successful installation.

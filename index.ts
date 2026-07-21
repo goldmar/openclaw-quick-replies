@@ -25,7 +25,7 @@ function register(api: OpenClawPluginApi): void {
 
 export default definePluginEntry({
   id: "openclaw-quick-replies",
-  name: "OpenClaw Quick Replies",
+  name: "Quick Replies",
   description: "Contextual one-tap reply suggestions for Telegram conversations",
   register,
 });
