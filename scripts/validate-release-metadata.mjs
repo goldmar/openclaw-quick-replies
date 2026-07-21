@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const scriptPath = fileURLToPath(import.meta.url);
 const rootDir = dirname(dirname(scriptPath));
 const PACKAGE_NAME = "openclaw-quick-replies";
+const PLUGIN_NAME = "Quick Replies";
 const OPENCLAW_VERSION = "2026.7.1";
 
 export function validateReleaseMetadata({ releaseVersion, baseDir = rootDir } = {}) {
@@ -16,6 +17,7 @@ export function validateReleaseMetadata({ releaseVersion, baseDir = rootDir } = 
   const version = releaseVersion ?? pkg.version;
 
   assert(pkg.name === PACKAGE_NAME, `Unexpected package name: ${pkg.name}`);
+  assert(manifest.name === PLUGIN_NAME, `Unexpected plugin display name: ${manifest.name}`);
   assert(pkg.version === version, `package.json version is ${pkg.version}, expected ${version}`);
   assert(manifest.version === version, `openclaw.plugin.json version is ${manifest.version}, expected ${version}`);
   assert(new RegExp(`^## ${escapeRegExp(version)}$`, "mu").test(changelog), `CHANGELOG.md has no ${version} section`);
