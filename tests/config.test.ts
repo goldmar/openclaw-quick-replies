@@ -2,11 +2,17 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import plugin from "../index";
 import { DEFAULT_CONFIG, QUICK_REPLY_THINK_LEVELS, resolveQuickReplyConfig, validateEvaluatorDecision } from "../src/config";
 
 const manifest = JSON.parse(readFileSync(join(import.meta.dirname, "..", "openclaw.plugin.json"), "utf8"));
 
 describe("public configuration", () => {
+  it("keeps the ClawHub and runtime display names aligned", () => {
+    assert.equal(manifest.name, "Quick Replies");
+    assert.equal(plugin.name, manifest.name);
+  });
+
   it("keeps runtime and manifest defaults aligned", () => {
     const properties = manifest.configSchema.properties;
     for (const key of [
