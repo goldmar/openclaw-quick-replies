@@ -3,8 +3,8 @@
 ## Runtime contracts
 
 - Plugin ID: `openclaw-quick-replies`
-- OpenClaw API floor: `>=2026.7.1`
-- Gateway floor: `2026.7.1`
+- OpenClaw API floor: `>=2026.7.1-2`
+- Gateway floor: `2026.7.1-2`
 - Node.js floor: `>=22.22.3`
 - Supported channel: `telegram`
 - Hook: `reply_payload_sending`

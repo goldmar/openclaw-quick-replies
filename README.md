@@ -56,7 +56,7 @@ Buttons are considered only when the assistant is clearly asking for an answer. 
 
 ## Install
 
-You need OpenClaw 2026.7.1 or newer. Most users should install from ClawHub:
+You need OpenClaw 2026.7.1-2 or newer. Most users should install from ClawHub:
 
 ```bash
 openclaw plugins install clawhub:openclaw-quick-replies
@@ -154,7 +154,7 @@ Each eligible message can make one additional model request. The cost and latenc
 
 Numbered and bulleted choices are still evaluated by the model. OpenClaw Quick Replies does not use a deterministic list parser or other non-model path to decide eligibility or generate answers.
 
-The evaluator receives the outgoing message text and the Telegram channel name. It runs in an isolated temporary raw-model session with tools and message delivery disabled. OpenClaw user MCP servers are removed from the per-run config without changing shared configuration. OpenClaw 2026.7.1 can still inherit MCP servers from Codex's own user configuration; see [the architecture note](docs/ARCHITECTURE.md#openclaw-202671-codex-mcp-limitation). If an outgoing message must not be sent to your configured model provider, do not use OpenClaw Quick Replies for that conversation.
+The evaluator receives the outgoing message text and the Telegram channel name. It runs in an isolated temporary raw-model session with tools and message delivery disabled. OpenClaw user MCP servers are removed from the per-run config without changing shared configuration. OpenClaw 2026.7.1 through 2026.7.1-2 can still inherit MCP servers from Codex's own user configuration; see [the architecture note](docs/ARCHITECTURE.md#openclaw-202671-codex-mcp-limitation). If an outgoing message must not be sent to your configured model provider, do not use OpenClaw Quick Replies for that conversation.
 
 OpenClaw Quick Replies does not send button values to its own remote service. It keeps recent source-message identifiers in process memory for five minutes to prevent a repeated tap from submitting the same answer twice.
 
@@ -183,7 +183,7 @@ See [SECURITY.md](SECURITY.md) for the full security boundary and reporting inst
 
 ## Updates and compatibility
 
-OpenClaw Quick Replies requires OpenClaw 2026.7.1 or newer and Node.js 22.22.3 or newer. Update it through OpenClaw:
+OpenClaw Quick Replies requires OpenClaw 2026.7.1-2 or newer and Node.js 22.22.3 or newer. Update it through OpenClaw:
 
 ```bash
 openclaw plugins update openclaw-quick-replies
