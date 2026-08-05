@@ -7,7 +7,7 @@ const scriptPath = fileURLToPath(import.meta.url);
 const rootDir = dirname(dirname(scriptPath));
 const PACKAGE_NAME = "openclaw-quick-replies";
 const PLUGIN_NAME = "Quick Replies";
-const OPENCLAW_VERSION = "2026.7.1";
+const OPENCLAW_VERSION = "2026.7.1-2";
 
 export function validateReleaseMetadata({ releaseVersion, baseDir = rootDir } = {}) {
   const pkg = JSON.parse(readFileSync(join(baseDir, "package.json"), "utf8"));

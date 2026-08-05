@@ -4,7 +4,12 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+## 0.1.6
+
 - Renamed the user-facing OpenClaw and ClawHub plugin title from "OpenClaw Quick Replies" to "Quick Replies" while preserving stable package and plugin identifiers.
+- Explained expired or stale update and restart approvals in Telegram, preserved the restart control after duplicate install callbacks, and deduplicated concurrent Gateway restart requests.
+- Updated the OpenClaw compatibility floor and development SDK to 2026.7.1-2, including its corrected npm plugin metadata handling.
+- Updated CI and transitive dependency resolutions to current patched releases.
 
 ## 0.1.5
 
