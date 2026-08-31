@@ -4,6 +4,12 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## Unreleased
 
+## 0.1.7
+
+- Discontinued OpenClaw Quick Replies after OpenClaw 2026.8.1 introduced first-party structured questions with native controls, validated Gateway answers, and broader channel support.
+- Replaced the active installation and configuration guide with an archival notice, an honest comparison of the remaining legacy behavior, and migration instructions for native `ask_user` questions.
+- Updated package, catalog, support, and security metadata to make the end of maintenance visible. Runtime behavior is unchanged from v0.1.6.
+
 ## 0.1.6
 
 - Renamed the user-facing OpenClaw and ClawHub plugin title from "OpenClaw Quick Replies" to "Quick Replies" while preserving stable package and plugin identifiers.
