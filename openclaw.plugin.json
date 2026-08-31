@@ -1,8 +1,8 @@
 {
   "id": "openclaw-quick-replies",
   "name": "Quick Replies",
-  "description": "Contextual one-tap reply suggestions for Telegram conversations",
-  "version": "0.1.6",
+  "description": "Discontinued legacy Telegram quick replies; use OpenClaw 2026.8.1+ native questions",
+  "version": "0.1.7",
   "activation": {
     "onStartup": true
   },

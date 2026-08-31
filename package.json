@@ -1,7 +1,7 @@
 {
   "name": "openclaw-quick-replies",
-  "version": "0.1.6",
-  "description": "Telegram quick reply suggestions for OpenClaw conversations.",
+  "version": "0.1.7",
+  "description": "Discontinued legacy Telegram quick replies for OpenClaw; use native ask_user on 2026.8.1+.",
   "type": "module",
   "engines": {
     "node": ">=22.22.3"

@@ -2,24 +2,16 @@
 
 ## Supported versions
 
-Security fixes are provided for the latest published version of OpenClaw Quick Replies.
+OpenClaw Quick Replies is discontinued. No published version receives security fixes or compatibility updates.
+
+Users should uninstall the plugin and migrate to OpenClaw 2026.8.1 or newer, which provides native structured questions through `ask_user` and supported agent-harness bridges.
 
 ## Reporting a vulnerability
 
-Use GitHub's private vulnerability reporting for this repository. Do not open a public issue containing exploit details, callback payloads tied to private conversations, credentials, tokens, or personal data.
+Security issues in current OpenClaw belong in the [OpenClaw security process](https://github.com/openclaw/openclaw/security). For a vulnerability specific to this historical package, use this repository's private vulnerability reporting if available. Do not open a public issue containing exploit details, credentials, tokens, private conversation data, callback payloads tied to private conversations, or personal data.
 
-Include the affected version, OpenClaw version, channel, reproduction steps, impact, and any suggested mitigation. You should receive an acknowledgement within seven days. Disclosure timing will be coordinated after a fix is available.
+A report may help downstream forks and historical analysis, but this discontinued project does not promise a patch or release.
 
-For ordinary bugs and support questions, use the repository issue templates instead.
+## Historical security boundaries
 
-## Security boundaries
-
-- OpenClaw Quick Replies supports Telegram only and requires OpenClaw 2026.7.1 or newer.
-- The evaluator receives outbound message text and the channel name. It runs through OpenClaw's managed agent runtime with tools and message delivery disabled.
-- Evaluation output is untrusted and must pass schema, confidence, count, length, byte-budget, and callback validation.
-- Callback values use canonical `oqr:v1:<base64url>` data and are limited to 42 UTF-8 bytes.
-- Unauthorized, malformed, repeated, and source-less callbacks do not submit agent input.
-- Quick replies are ordinary inbound text and never replace OpenClaw approvals or authorization policy.
-- The optional update checker requests public npm metadata at most once per day and sends no conversation content, user identifier, or configuration.
-- Update controls accept only a recent prompted stable version, reinstall and verify that exact version through OpenClaw's native plugin manager, and require a separate authorized Gateway-restart confirmation.
-- The plugin contains no registry credential, remote callback store, shell command, or unattended installation path.
+The final runtime is unchanged from v0.1.6. It is Telegram-only, makes an additional model request for eligible outgoing messages, submits selected callback values as ordinary inbound text, and uses process-local duplicate suppression. Its former architecture and security documentation remain in the immutable [v0.1.6 source tree](https://github.com/goldmar/openclaw-quick-replies/tree/v0.1.6).
