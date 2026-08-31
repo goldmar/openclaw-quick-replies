@@ -58,6 +58,14 @@ For the former installation, configuration, architecture, and security documenta
 
 OpenClaw Quick Replies was a Telegram-only OpenClaw plugin that conservatively added model-generated reply suggestions to explicit questions, cleaned up buttons after selection, and submitted the selected value in the context of the source message. It shipped eight releases from v0.1.0 through the final v0.1.7 documentation release.
 
+### Historical interface
+
+These screenshots show the discontinued plugin's Telegram experience before and after a selection:
+
+![Legacy OpenClaw Quick Replies suggestions for Staging, Production, and Hold off](docs/assets/quick-replies-suggestions.png)
+
+![Legacy OpenClaw Quick Replies message after Staging was selected](docs/assets/quick-reply-selected.png)
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
